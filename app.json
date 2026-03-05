@@ -1,30 +1,45 @@
 {
   "expo": {
-    "name": "Livo_FrontEnd",
-    "slug": "Livo_FrontEnd",
+    "name": "Livo",
+    "slug": "livo",
+    "entryPoint": "./App.tsx",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#1a1a1a",
     "splash": {
-      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a1a1a"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.livo.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#1a1a1a"
       },
-      "predictiveBackGestureEnabled": false
+      "package": "com.livo.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Livo to access your camera."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Livo to use Face ID."
+        }
+      ]
+    ]
   }
 }
