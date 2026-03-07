@@ -213,7 +213,7 @@ export default function SetPasswordScreen(): React.ReactElement {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color={colors.textPrimary} />
+              <ActivityIndicator color={colors.buttonText} />
             ) : (
               <Text style={styles.submitText}>Continue</Text>
             )}
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   submitBtn: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.buttonPrimary,
     borderRadius: borderRadius.full,
     paddingVertical: spacing.base,
     alignItems: 'center',
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.6 },
   submitText: {
     ...typography.bodyMd,
-    color: colors.textPrimary,
+    color: colors.buttonText,
     fontWeight: '600',
   },
 });

@@ -32,8 +32,8 @@ export default function MainTabs(): React.ReactElement {
                 headerShown: false,
                 tabBarIcon: () => <TabIcon label={route.name} />,
                 tabBarStyle: {
-                    backgroundColor: colors.tabBarBackground,
-                    borderTopColor: colors.tabBarBorder,
+                    backgroundColor: colors.tabBarBg,
+                    borderTopColor: colors.border,
                     borderTopWidth: 1,
                     height: 88,
                     paddingBottom: 30,

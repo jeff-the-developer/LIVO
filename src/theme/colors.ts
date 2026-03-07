@@ -1,71 +1,80 @@
-// ─── Primitive Palette ────────────────────────────────────────────────────────
+// ─── Brand Color Palette ──────────────────────────────────────────────────────
+// Extracted from Livo Branding assets
 export const palette = {
-    green500: '#01CA47',
-    green400: '#12D957',
-    green300: '#2EE86A',
-    green100: '#D9F7E3',
-    green900: '#014D20',
-    purple400: '#7C6FF7',
-    pink400: '#FF6B9D',
-    gray950: '#1a1a1a',
-    gray900: '#1f1f1f',
-    gray850: '#242424',
-    gray800: '#2a2a2a',
-    gray700: '#333333',
-    gray600: '#404040',
-    gray400: 'rgba(255,255,255,0.5)',
-    gray300: 'rgba(255,255,255,0.3)',
-    gray200: 'rgba(255,255,255,0.12)',
-    gray100: 'rgba(255,255,255,0.06)',
+    // Primary Green (brand hero)
+    green50: '#E8F9EE',
+    green100: '#D8F5E3',
+    green200: '#A8E8BF',
+    green300: '#6DD897',
+    green400: '#1ED760',
+    green500: '#01CA47', // ← brand primary
+    green600: '#00B33D',
+    green700: '#009933',
+    green800: '#007D2A',
+    green900: '#006622',
+
+    // Neutrals (light theme — Figma match)
     white: '#FFFFFF',
+    gray50: '#F9FAFB',
+    gray100: '#F3F4F6',
+    gray200: '#E5E7EB',
+    gray300: '#D1D5DB',
+    gray400: '#9CA3AF',
+    gray500: '#6B7280',
+    gray600: '#4B5563',
+    gray700: '#374151',
+    gray800: '#1F2937',
+    gray900: '#111827',
     black: '#000000',
-    red400: '#FF3B30',
-    orange400: '#FF9500',
-    gold400: '#FFD700',
-    blue400: '#0A84FF',
+
+    // Status
+    red: '#EF4444',
+    redLight: '#FEE2E2',
+    orange: '#F59E0B',
+    blue: '#3B82F6',
 } as const;
 
 // ─── Semantic Tokens ──────────────────────────────────────────────────────────
 export const colors = {
-    background: palette.gray950,
-    backgroundSecondary: palette.gray900,
-    surface: palette.gray850,
-    surfaceSecondary: palette.gray800,
-    surfaceTertiary: palette.gray700,
-    border: palette.gray200,
-    borderSubtle: palette.gray100,
-    borderFocus: palette.green500,
-
+    // Brand
     primary: palette.green500,
-    primaryHover: palette.green400,
     primaryLight: palette.green100,
-    primaryDark: palette.green900,
+    primaryDark: palette.green700,
 
-    secondary: palette.purple400,
+    // Backgrounds — WHITE per Figma
+    background: palette.white,
+    surface: palette.gray50,
+    surfaceAlt: palette.gray100,
 
-    error: palette.pink400,
-    errorAlt: palette.red400,
+    // Text — BLACK/DARK per Figma
+    textPrimary: palette.gray900,
+    textSecondary: palette.gray500,
+    textMuted: palette.gray400,
+    textInverse: palette.white,
+
+    // Borders
+    border: palette.gray200,
+    borderFocused: palette.green500,
+    divider: palette.gray200,
+
+    // Status
     success: palette.green500,
-    warning: palette.orange400,
-    info: palette.blue400,
-    gold: palette.gold400,
+    successAlt: palette.green100,
+    error: palette.red,
+    errorAlt: palette.red,
+    warning: palette.orange,
+    info: palette.blue,
 
-    textPrimary: palette.white,
-    textSecondary: palette.gray400,
-    textMuted: palette.gray300,
-    textDisabled: palette.gray200,
-    textInverse: palette.gray950,
-
-    overlay: 'rgba(0,0,0,0.7)',
-    overlayLight: 'rgba(0,0,0,0.4)',
-
-    cardBackground: palette.gray100,
-    cardBorder: palette.gray200,
-
-    tabBarBackground: palette.gray950,
-    tabBarBorder: palette.gray200,
+    // Components
+    cardBackground: palette.white,
+    inputBackground: palette.white,
+    buttonPrimary: palette.gray900,     // dark CTA button per Figma
+    buttonText: palette.white,
+    tabBarBg: palette.white,
     tabBarActive: palette.green500,
     tabBarInactive: palette.gray400,
-} as const;
 
-export type Colors = typeof colors;
+    // Overlay
+    overlay: 'rgba(0, 0, 0, 0.5)',
+    shimmer: palette.gray200,
+} as const;

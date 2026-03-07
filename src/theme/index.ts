@@ -1,5 +1,4 @@
 export { colors, palette } from './colors';
-export type { Colors } from './colors';
 
 export { typography, fontFamily, fontSize, fontWeight } from './typography';
 export type { Typography } from './typography';

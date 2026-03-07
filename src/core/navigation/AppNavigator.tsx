@@ -1,17 +1,17 @@
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { useAuthStore } from '@stores/authStore';
 import { colors } from '@theme/colors';
 import AuthStack from './AuthStack';
 import MainTabs from './MainTabs';
 
 const navTheme = {
-    ...DarkTheme,
+    ...DefaultTheme,
     colors: {
-        ...DarkTheme.colors,
+        ...DefaultTheme.colors,
         background: colors.background,
-        card: colors.surface,
+        card: colors.cardBackground,
         border: colors.border,
         primary: colors.primary,
         text: colors.textPrimary,

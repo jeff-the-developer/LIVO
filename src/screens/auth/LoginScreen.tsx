@@ -202,7 +202,7 @@ export default function LoginScreen(): React.ReactElement {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color={colors.textPrimary} />
+              <ActivityIndicator color={colors.buttonText} />
             ) : (
               <Text style={styles.submitText}>Submit</Text>
             )}
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   submitBtn: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.buttonPrimary,
     borderRadius: borderRadius.full,
     paddingVertical: spacing.base,
     alignItems: 'center',
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   },
   submitText: {
     ...typography.bodyMd,
-    color: colors.textPrimary,
+    color: colors.buttonText,
     fontWeight: '600',
   },
 });
