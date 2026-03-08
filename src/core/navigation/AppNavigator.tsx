@@ -4,7 +4,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { useAuthStore } from '@stores/authStore';
 import { colors } from '@theme/colors';
 import AuthStack from './AuthStack';
-import MainTabs from './MainTabs';
+import AppStack from './AppStack';
 
 const navTheme = {
     ...DefaultTheme,
@@ -40,7 +40,7 @@ export default function AppNavigator(): React.ReactElement {
 
     return (
         <NavigationContainer theme={navTheme}>
-            {isLoggedIn ? <MainTabs /> : <AuthStack />}
+            {isLoggedIn ? <AppStack /> : <AuthStack />}
         </NavigationContainer>
     );
 }

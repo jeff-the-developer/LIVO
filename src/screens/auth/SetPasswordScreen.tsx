@@ -17,13 +17,14 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { HugeiconsIcon } from '@hugeicons/react-native';
+import { ViewFreeIcons, ViewOffFreeIcons, ArrowLeft01FreeIcons } from '@hugeicons/core-free-icons';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AuthStackParamList } from '@app-types/navigation.types';
-import { useSetPassword } from '@hooks/api/useAuth';
-import { handleApiError } from '@utils/errorHandler';
+import { useSetPassword, handleApiError } from '@hooks/api/useAuth';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList>;
 type RouteProps = NativeStackScreenProps<AuthStackParamList, 'SetPassword'>['route'];
@@ -51,8 +52,8 @@ export default function SetPasswordScreen(): React.ReactElement {
   const [showConfirm, setShowConfirm] = useState(false);
   const setPasswordMutation = useSetPassword();
 
-  // email/user_id passed from RegisterScreen via navigation
-  const email = (route.params as { email?: string } | undefined)?.email ?? '';
+  const { mode, identifier, userId } = route.params;
+  const isRegister = mode === 'register';
 
   const {
     control,
@@ -66,10 +67,22 @@ export default function SetPasswordScreen(): React.ReactElement {
   const onSubmit = async (data: SetPasswordForm) => {
     try {
       await setPasswordMutation.mutateAsync({
-        user_id: 'mock-user-001',
+        user_id: userId ?? 'mock-user-001',
         password: data.password,
         confirm_password: data.confirm,
       });
+
+      if (isRegister) {
+        // Continue to username creation
+        navigation.navigate('CreateUsername', {
+          mode: 'register',
+          userId: userId,
+        });
+      } else {
+        // Reset password — go back to login
+        Alert.alert('Success', 'Password reset successfully');
+        navigation.navigate('Login');
+      }
     } catch (err) {
       const e = handleApiError(err);
       Alert.alert(e.title, e.message);
@@ -96,18 +109,22 @@ export default function SetPasswordScreen(): React.ReactElement {
               style={styles.backBtn}
               onPress={() => navigation.goBack()}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
             >
-              <Text style={styles.backArrow}>←</Text>
+              <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
             </TouchableOpacity>
-            <Text style={styles.title}>Set Password</Text>
+            <Text style={styles.title}>
+              {isRegister ? 'Set Password' : 'Reset Password'}
+            </Text>
             <View style={styles.headerSpacer} />
           </View>
 
           {/* Subtitle */}
-          {!!email && (
+          {!!identifier && (
             <Text style={styles.subtitle}>
-              Creating account for{' '}
-              <Text style={styles.emailHighlight}>{email}</Text>
+              {isRegister ? 'Creating account for ' : 'Resetting password for '}
+              <Text style={styles.emailHighlight}>{identifier}</Text>
             </Text>
           )}
 
@@ -141,8 +158,14 @@ export default function SetPasswordScreen(): React.ReactElement {
                   style={styles.eyeBtn}
                   onPress={() => setShowPwd((p) => !p)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={showPwd ? 'Hide password' : 'Show password'}
+                  accessibilityRole="button"
                 >
-                  <Text style={styles.eyeIcon}>{showPwd ? '👁' : '🙈'}</Text>
+                  <HugeiconsIcon
+                    icon={showPwd ? ViewFreeIcons : ViewOffFreeIcons}
+                    size={18}
+                    color={colors.textSecondary}
+                  />
                 </TouchableOpacity>
               </View>
               {errors.password && (
@@ -179,8 +202,14 @@ export default function SetPasswordScreen(): React.ReactElement {
                   style={styles.eyeBtn}
                   onPress={() => setShowConfirm((p) => !p)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={showConfirm ? 'Hide password' : 'Show password'}
+                  accessibilityRole="button"
                 >
-                  <Text style={styles.eyeIcon}>{showConfirm ? '👁' : '🙈'}</Text>
+                  <HugeiconsIcon
+                    icon={showConfirm ? ViewFreeIcons : ViewOffFreeIcons}
+                    size={18}
+                    color={colors.textSecondary}
+                  />
                 </TouchableOpacity>
               </View>
               {errors.confirm && (
@@ -278,7 +307,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   rules: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: borderRadius.card,
     padding: spacing.base,
     gap: spacing.xs,

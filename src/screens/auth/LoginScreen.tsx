@@ -17,6 +17,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { HugeiconsIcon } from '@hugeicons/react-native';
+import { ViewFreeIcons, ViewOffFreeIcons, ArrowLeft01FreeIcons } from '@hugeicons/core-free-icons';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
@@ -89,8 +91,10 @@ export default function LoginScreen(): React.ReactElement {
               style={styles.backBtn}
               onPress={() => navigation.goBack()}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
             >
-              <Text style={styles.backArrow}>←</Text>
+              <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.title}>Login</Text>
             <View style={styles.headerSpacer} />
@@ -152,8 +156,14 @@ export default function LoginScreen(): React.ReactElement {
                   style={styles.eyeBtn}
                   onPress={() => setShowPassword((p) => !p)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  accessibilityRole="button"
                 >
-                  <Text style={styles.eyeIcon}>{showPassword ? '👁' : '🙈'}</Text>
+                  <HugeiconsIcon
+                    icon={showPassword ? ViewFreeIcons : ViewOffFreeIcons}
+                    size={18}
+                    color={colors.textSecondary}
+                  />
                 </TouchableOpacity>
               </View>
               {errors.password && (

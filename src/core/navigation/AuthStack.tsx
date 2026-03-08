@@ -5,8 +5,11 @@ import { colors } from '@theme/colors';
 
 import LoginScreen from '@screens/auth/LoginScreen';
 import RegisterScreen from '@screens/auth/RegisterScreen';
-import VerifyEmailScreen from '@screens/auth/VerifyEmailScreen';
+import VerifyOTPScreen from '@screens/auth/VerifyOTPScreen';
 import SetPasswordScreen from '@screens/auth/SetPasswordScreen';
+import CreateUsernameScreen from '@screens/auth/CreateUsernameScreen';
+
+// Placeholder stubs for screens not yet built
 import ForgotPasswordScreen from '@screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '@screens/auth/ResetPasswordScreen';
 import AccountTypeScreen from '@screens/auth/AccountTypeScreen';
@@ -27,8 +30,9 @@ export default function AuthStack(): React.ReactElement {
         >
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+            <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
             <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
+            <Stack.Screen name="CreateUsername" component={CreateUsernameScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
             <Stack.Screen name="AccountType" component={AccountTypeScreen} />

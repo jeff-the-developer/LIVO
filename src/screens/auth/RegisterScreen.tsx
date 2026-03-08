@@ -17,6 +17,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { HugeiconsIcon } from '@hugeicons/react-native';
+import { ArrowLeft01FreeIcons, QrCodeFreeIcons } from '@hugeicons/core-free-icons';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
@@ -43,9 +45,7 @@ type RegisterForm = z.infer<typeof registerSchema>;
 // ─── QR Scan Icon ─────────────────────────────────────────────────────────────
 function QRIcon(): React.ReactElement {
   return (
-    <View style={styles.qrIconWrap}>
-      <Text style={styles.qrIconText}>⊞</Text>
-    </View>
+    <HugeiconsIcon icon={QrCodeFreeIcons} size={20} color={colors.textMuted} />
   );
 }
 
@@ -97,8 +97,10 @@ export default function RegisterScreen(): React.ReactElement {
               style={styles.backBtn}
               onPress={() => navigation.goBack()}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
             >
-              <Text style={styles.backArrow}>←</Text>
+              <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.title}>Register</Text>
             <View style={styles.headerSpacer} />
