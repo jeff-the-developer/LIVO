@@ -73,12 +73,27 @@ export interface UpgradeOption {
     };
 }
 
+export type BenefitInfoType =
+    | 'crypto_fee'
+    | 'referral'
+    | 'cashback'
+    | 'individual'
+    | 'corporate'
+    | 'cards'
+    | 'payroll'
+    | 'branded'
+    | 'invite_only';
+
 export interface BenefitInfoModal {
-    type: 'individual' | 'corporate' | 'cards' | 'payroll' | 'branded' | 'invite_only';
+    type: BenefitInfoType;
     title: string;
     description: string;
     icon: string;
     details?: string[];
+    secondaryAction?: {
+        label: string;
+        action: string;
+    };
 }
 
 // ─── API Response Types ──────────────────────────────────────────────────────

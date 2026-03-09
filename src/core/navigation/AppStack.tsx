@@ -12,6 +12,27 @@ import IdentityVerificationScreen from '@screens/profile/IdentityVerificationScr
 import KYC1VerifyScreen from '@screens/profile/KYC1VerifyScreen';
 import MyAddressScreen from '@screens/profile/MyAddressScreen';
 import StatusUpgradeScreen from '@screens/profile/StatusUpgradeScreen';
+import MyCouponsScreen from '@screens/profile/MyCouponsScreen';
+import EventsScreen from '@screens/profile/EventsScreen';
+import AccountSecurityScreen from '@screens/profile/AccountSecurityScreen';
+import NotificationsScreen from '@screens/profile/NotificationsScreen';
+import AppearanceDisplayScreen from '@screens/profile/AppearanceDisplayScreen';
+import InviteFriendsScreen from '@screens/profile/InviteFriendsScreen';
+import MyInvitesScreen from '@screens/profile/MyInvitesScreen';
+import ClientSupportScreen from '@screens/profile/ClientSupportScreen';
+import SupportChatScreen from '@screens/profile/SupportChatScreen';
+import AboutLIVOPayScreen from '@screens/profile/AboutLIVOPayScreen';
+import TermsOfServiceScreen from '@screens/profile/TermsOfServiceScreen';
+import SecurityEmailScreen from '@screens/profile/SecurityEmailScreen';
+import SecurityMobileScreen from '@screens/profile/SecurityMobileScreen';
+import AuthenticatorScreen from '@screens/profile/AuthenticatorScreen';
+import SecureKeyScreen from '@screens/profile/SecureKeyScreen';
+import LoginPasswordScreen from '@screens/profile/LoginPasswordScreen';
+import MyActivityScreen from '@screens/profile/MyActivityScreen';
+import MyDeviceScreen from '@screens/profile/MyDeviceScreen';
+import WithdrawalSettingsScreen from '@screens/profile/WithdrawalSettingsScreen';
+import AntiPhishingScreen from '@screens/profile/AntiPhishingScreen';
+import BiometricVerifyScreen from '@screens/profile/BiometricVerifyScreen';
 import VerifyOTPScreen from '@screens/auth/VerifyOTPScreen';
 import CreateUsernameScreen from '@screens/auth/CreateUsernameScreen';
 import PrimaryNationalityScreen from '@screens/kyc/PrimaryNationalityScreen';
@@ -38,6 +59,27 @@ export default function AppStack(): React.ReactElement {
             <Stack.Screen name="KYC1Verify" component={KYC1VerifyScreen} />
             <Stack.Screen name="MyAddress" component={MyAddressScreen} />
             <Stack.Screen name="StatusUpgrade" component={StatusUpgradeScreen} />
+            <Stack.Screen name="MyCoupons" component={MyCouponsScreen} />
+            <Stack.Screen name="Events" component={EventsScreen} />
+            <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="AppearanceDisplay" component={AppearanceDisplayScreen} />
+            <Stack.Screen name="InviteFriends" component={InviteFriendsScreen} />
+            <Stack.Screen name="MyInvites" component={MyInvitesScreen} />
+            <Stack.Screen name="ClientSupport" component={ClientSupportScreen} />
+            <Stack.Screen name="SupportChat" component={SupportChatScreen} />
+            <Stack.Screen name="AboutLIVOPay" component={AboutLIVOPayScreen} />
+            <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+            <Stack.Screen name="SecurityEmail" component={SecurityEmailScreen} />
+            <Stack.Screen name="SecurityMobile" component={SecurityMobileScreen} />
+            <Stack.Screen name="Authenticator" component={AuthenticatorScreen} />
+            <Stack.Screen name="SecureKey" component={SecureKeyScreen} />
+            <Stack.Screen name="LoginPassword" component={LoginPasswordScreen} />
+            <Stack.Screen name="MyActivity" component={MyActivityScreen} />
+            <Stack.Screen name="MyDevice" component={MyDeviceScreen} />
+            <Stack.Screen name="WithdrawalSettings" component={WithdrawalSettingsScreen} />
+            <Stack.Screen name="AntiPhishing" component={AntiPhishingScreen} />
+            <Stack.Screen name="BiometricVerify" component={BiometricVerifyScreen} />
             <Stack.Screen name="PrimaryNationality" component={PrimaryNationalityScreen} />
             <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
             <Stack.Screen name="CreateUsername" component={CreateUsernameScreen} />

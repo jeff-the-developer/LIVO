@@ -161,7 +161,7 @@ export default function ProfileScreen(): React.ReactElement {
             icon={UserGroupFreeIcons}
             title="Invite Friends"
             subtitle="Refer & Earn"
-            onPress={comingSoon('Invite Friends')}
+            onPress={() => navigation.navigate('InviteFriends')}
             testID="profile-card-invite"
           />
         </View>
@@ -172,21 +172,21 @@ export default function ProfileScreen(): React.ReactElement {
         <MenuItem
           icon={SquareLock02FreeIcons}
           label="Account Security"
-          onPress={comingSoon('Account Security')}
+          onPress={() => navigation.navigate('AccountSecurity')}
           testID="profile-menu-security"
         />
         <LineDivider />
         <MenuItem
           icon={Notification03FreeIcons}
           label="Notifications"
-          onPress={comingSoon('Notifications')}
+          onPress={() => navigation.navigate('Notifications')}
           testID="profile-menu-notifications"
         />
         <LineDivider />
         <MenuItem
           icon={PaintBrush01FreeIcons}
           label="Appearance & Display"
-          onPress={comingSoon('Appearance & Display')}
+          onPress={() => navigation.navigate('AppearanceDisplay')}
           testID="profile-menu-appearance"
         />
 
@@ -196,14 +196,14 @@ export default function ProfileScreen(): React.ReactElement {
         <MenuItem
           icon={Coupon01FreeIcons}
           label="My Coupons"
-          onPress={comingSoon('My Coupons')}
+          onPress={() => navigation.navigate('MyCoupons')}
           testID="profile-menu-coupons"
         />
         <LineDivider />
         <MenuItem
           icon={Calendar03FreeIcons}
           label="Events"
-          onPress={comingSoon('Events')}
+          onPress={() => navigation.navigate('Events')}
           testID="profile-menu-events"
         />
 
@@ -223,21 +223,21 @@ export default function ProfileScreen(): React.ReactElement {
         <MenuItem
           icon={CustomerSupportFreeIcons}
           label="Client Support"
-          onPress={comingSoon('Client Support')}
+          onPress={() => navigation.navigate('ClientSupport')}
           testID="profile-menu-support"
         />
         <LineDivider />
         <MenuItem
           icon={FileValidationFreeIcons}
           label="Terms of Service"
-          onPress={comingSoon('Terms of Service')}
+          onPress={() => navigation.navigate('TermsOfService')}
           testID="profile-menu-terms"
         />
         <LineDivider />
         <MenuItem
           icon={InformationSquareFreeIcons}
           label="About LIVOPay"
-          onPress={comingSoon('About LIVOPay')}
+          onPress={() => navigation.navigate('AboutLIVOPay')}
           testID="profile-menu-about"
         />
 

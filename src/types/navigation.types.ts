@@ -50,8 +50,29 @@ export type AppStackParamList = {
     Verification: undefined;
     MyAddress: undefined;
     StatusUpgrade: undefined;
+    MyCoupons: undefined;
+    Events: undefined;
+    AccountSecurity: undefined;
+    Notifications: undefined;
+    AppearanceDisplay: undefined;
+    InviteFriends: undefined;
+    MyInvites: undefined;
+    ClientSupport: undefined;
+    SupportChat: undefined;
+    AboutLIVOPay: undefined;
+    TermsOfService: undefined;
+    SecurityEmail: undefined;
+    SecurityMobile: undefined;
+    Authenticator: undefined;
+    SecureKey: undefined;
+    LoginPassword: undefined;
+    MyActivity: undefined;
+    MyDevice: undefined;
+    WithdrawalSettings: undefined;
+    AntiPhishing: undefined;
+    BiometricVerify: undefined;
     PrimaryNationality: undefined;
-    DocumentCapture: { 
+    DocumentCapture: {
         documentType: 'id_front' | 'id_back' | 'passport' | 'business_license' | 'address_proof';
         onComplete: (imageUri: string) => void;
     };

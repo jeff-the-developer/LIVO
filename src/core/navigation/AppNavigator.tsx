@@ -19,11 +19,14 @@ const navTheme = {
     },
 };
 
+// ⚠️ Set to true to skip auth during development — REMOVE before production
+const DEV_SKIP_AUTH = true;
+
 export default function AppNavigator(): React.ReactElement {
     const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
     const isHydrated = useAuthStore((s) => s.isHydrated);
 
-    if (!isHydrated) {
+    if (!isHydrated && !DEV_SKIP_AUTH) {
         return (
             <View
                 style={{
@@ -40,7 +43,7 @@ export default function AppNavigator(): React.ReactElement {
 
     return (
         <NavigationContainer theme={navTheme}>
-            {isLoggedIn ? <AppStack /> : <AuthStack />}
+            {(isLoggedIn || DEV_SKIP_AUTH) ? <AppStack /> : <AuthStack />}
         </NavigationContainer>
     );
 }
