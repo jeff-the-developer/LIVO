@@ -5,152 +5,56 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
-    Switch,
-    ActivityIndicator,
-    Alert,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
-import { ArrowLeft01FreeIcons } from '@hugeicons/core-free-icons';
+import {
+    ArrowLeft01FreeIcons,
+    ArrowRight01FreeIcons,
+    Notification03FreeIcons,
+    Mail01FreeIcons,
+    Exchange01FreeIcons,
+    Activity01FreeIcons,
+    Settings01FreeIcons,
+} from '@hugeicons/core-free-icons';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
-import {
-    useNotificationPreferences,
-    useUpdateNotificationPreferences,
-    handleApiError,
-} from '@hooks/api/useNotifications';
-import type { NotificationKey } from '@api/notifications';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
-// ─── Notification Items Config ────────────────────────────────────────────────
-interface NotifItem {
-    key: NotificationKey;
+// ─── Nav Row ──────────────────────────────────────────────────────────────────
+function NavRow({
+    icon,
+    label,
+    onPress,
+    testID,
+}: {
+    icon: Parameters<typeof HugeiconsIcon>[0]['icon'];
     label: string;
-    subtitle: string;
-}
-
-const GENERAL_ITEMS: NotifItem[] = [
-    {
-        key: 'push_enabled',
-        label: 'Push Notifications',
-        subtitle: 'Receive push notifications on your device',
-    },
-];
-
-const ALERT_ITEMS: NotifItem[] = [
-    {
-        key: 'transaction_alerts',
-        label: 'Transaction Alerts',
-        subtitle: 'Get notified for every transaction',
-    },
-    {
-        key: 'security_alerts',
-        label: 'Security Alerts',
-        subtitle: 'Login attempts, password changes, etc.',
-    },
-    {
-        key: 'price_alerts',
-        label: 'Price Alerts',
-        subtitle: 'Crypto price movement notifications',
-    },
-    {
-        key: 'payment_reminders',
-        label: 'Payment Reminders',
-        subtitle: 'Upcoming payment due dates',
-    },
-];
-
-const MARKETING_ITEMS: NotifItem[] = [
-    {
-        key: 'promotions',
-        label: 'Promotions & Offers',
-        subtitle: 'Special deals, discounts, and campaigns',
-    },
-    {
-        key: 'newsletter',
-        label: 'Newsletter',
-        subtitle: 'Weekly updates and insights',
-    },
-];
-
-// ─── Toggle Row ───────────────────────────────────────────────────────────────
-function NotifToggle({
-    item,
-    value,
-    onToggle,
-    disabled,
-    isLast,
-}: {
-    item: NotifItem;
-    value: boolean;
-    onToggle: (val: boolean) => void;
-    disabled: boolean;
-    isLast: boolean;
+    onPress: () => void;
+    testID: string;
 }): React.ReactElement {
     return (
         <>
-            <View style={rowStyles.row}>
-                <View style={rowStyles.content}>
-                    <Text style={rowStyles.label}>{item.label}</Text>
-                    <Text style={rowStyles.subtitle}>{item.subtitle}</Text>
+            <TouchableOpacity
+                style={s.row}
+                onPress={onPress}
+                activeOpacity={0.7}
+                testID={testID}
+            >
+                <View style={s.rowIconWrap}>
+                    <HugeiconsIcon icon={icon} size={20} color={colors.textPrimary} />
                 </View>
-                <Switch
-                    value={value}
-                    onValueChange={onToggle}
-                    disabled={disabled}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={colors.background}
-                    testID={`notif-${item.key}`}
-                />
-            </View>
-            {!isLast && (
-                <View
-                    style={{
-                        height: 0.5,
-                        backgroundColor: colors.border,
-                        marginHorizontal: spacing.base,
-                    }}
-                />
-            )}
-        </>
-    );
-}
-
-// ─── Section ──────────────────────────────────────────────────────────────────
-function Section({
-    title,
-    items,
-    preferences,
-    onToggle,
-    disabled,
-}: {
-    title: string;
-    items: NotifItem[];
-    preferences: Record<string, boolean>;
-    onToggle: (key: NotificationKey, val: boolean) => void;
-    disabled: boolean;
-}): React.ReactElement {
-    return (
-        <>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <View style={styles.card}>
-                {items.map((item, idx) => (
-                    <NotifToggle
-                        key={item.key}
-                        item={item}
-                        value={preferences[item.key] ?? false}
-                        onToggle={(val) => onToggle(item.key, val)}
-                        disabled={disabled}
-                        isLast={idx === items.length - 1}
-                    />
-                ))}
-            </View>
+                <Text style={s.rowLabel}>{label}</Text>
+                <HugeiconsIcon icon={ArrowRight01FreeIcons} size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+            <View style={s.divider} />
         </>
     );
 }
@@ -158,89 +62,100 @@ function Section({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function NotificationsScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
-    const { data: preferences, isLoading } = useNotificationPreferences();
-    const updateMutation = useUpdateNotificationPreferences();
 
-    const onToggle = (key: NotificationKey, value: boolean) => {
-        updateMutation.mutate(
-            { [key]: value },
-            {
-                onError: (err) => {
-                    Alert.alert('Error', handleApiError(err).message);
-                },
-            },
-        );
+    const openSystemSettings = () => {
+        Linking.openSettings();
     };
 
-    const prefs = (preferences ?? {}) as Record<string, boolean>;
-
     return (
-        <SafeAreaView style={styles.safe} edges={['top']}>
-            {/* ─── Header ──────────────────────────────────────── */}
-            <View style={styles.header}>
+        <SafeAreaView style={s.safe} edges={['top']}>
+            {/* Header */}
+            <View style={s.header}>
                 <TouchableOpacity
-                    style={styles.backBtn}
+                    style={s.backBtn}
                     onPress={() => navigation.goBack()}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     accessibilityLabel="Go back"
                     accessibilityRole="button"
                     testID="notif-back"
                 >
-                    <HugeiconsIcon
-                        icon={ArrowLeft01FreeIcons}
-                        size={24}
-                        color={colors.textPrimary}
-                    />
+                    <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Notifications</Text>
-                <View style={styles.headerSpacer} />
+                <Text style={s.headerTitle}>Notifications</Text>
+                <View style={s.headerSpacer} />
             </View>
 
-            {isLoading ? (
-                <View style={styles.loading}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+            <ScrollView
+                style={s.flex}
+                contentContainerStyle={s.scroll}
+                showsVerticalScrollIndicator={false}
+            >
+                {/* ─── System Notifications Card ────────────────────── */}
+                <View style={s.systemCard}>
+                    <View style={s.systemCardLeft}>
+                        <View style={s.bellWrap}>
+                            <HugeiconsIcon
+                                icon={Notification03FreeIcons}
+                                size={22}
+                                color={colors.primary}
+                            />
+                        </View>
+                        <View style={s.systemCardText}>
+                            <Text style={s.systemCardTitle}>App Notifications</Text>
+                            <Text style={s.systemCardSubtitle}>
+                                Go to system settings to turn on
+                            </Text>
+                        </View>
+                    </View>
+                    <TouchableOpacity
+                        style={s.goBtn}
+                        onPress={openSystemSettings}
+                        activeOpacity={0.85}
+                        testID="notif-go-settings"
+                    >
+                        <Text style={s.goBtnText}>Go</Text>
+                    </TouchableOpacity>
                 </View>
-            ) : (
-                <ScrollView
-                    style={styles.flex}
-                    contentContainerStyle={styles.scroll}
-                    showsVerticalScrollIndicator={false}
-                >
-                    <Section
-                        title="General"
-                        items={GENERAL_ITEMS}
-                        preferences={prefs}
-                        onToggle={onToggle}
-                        disabled={updateMutation.isPending}
-                    />
-                    <Section
-                        title="Alerts"
-                        items={ALERT_ITEMS}
-                        preferences={prefs}
-                        onToggle={onToggle}
-                        disabled={updateMutation.isPending}
-                    />
-                    <Section
-                        title="Marketing"
-                        items={MARKETING_ITEMS}
-                        preferences={prefs}
-                        onToggle={onToggle}
-                        disabled={updateMutation.isPending}
-                    />
 
-                    <View style={{ height: spacing.xxl }} />
-                </ScrollView>
-            )}
+                {/* ─── Navigation Rows ──────────────────────────────── */}
+                <View style={s.group}>
+                    <NavRow
+                        icon={Mail01FreeIcons}
+                        label="Email"
+                        onPress={() => navigation.navigate('EditEmail')}
+                        testID="notif-email"
+                    />
+                    <NavRow
+                        icon={Exchange01FreeIcons}
+                        label="Transactions"
+                        onPress={() => navigation.navigate('NotifTransactions')}
+                        testID="notif-transactions"
+                    />
+                    <NavRow
+                        icon={Activity01FreeIcons}
+                        label="Account activities"
+                        onPress={() => navigation.navigate('NotifAccountActivities')}
+                        testID="notif-account-activities"
+                    />
+                    <NavRow
+                        icon={Settings01FreeIcons}
+                        label="Miscellaneous"
+                        onPress={() => navigation.navigate('NotifMiscellaneous')}
+                        testID="notif-miscellaneous"
+                    />
+                </View>
+
+                <View style={{ height: spacing.xxl }} />
+            </ScrollView>
         </SafeAreaView>
     );
 }
 
-// ─── Screen Styles ────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
     flex: { flex: 1 },
-    scroll: { paddingBottom: spacing.base },
-    loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    scroll: { paddingTop: spacing.base },
 
     header: {
         flexDirection: 'row',
@@ -258,44 +173,78 @@ const styles = StyleSheet.create({
     },
     headerSpacer: { width: 36 },
 
-    sectionTitle: {
-        ...typography.label,
-        color: colors.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        paddingHorizontal: spacing.base,
-        paddingTop: spacing.lg,
-        paddingBottom: spacing.sm,
-    },
-    card: {
-        backgroundColor: colors.background,
+    // System card
+    systemCard: {
+        marginHorizontal: spacing.base,
         borderRadius: borderRadius.card,
         borderWidth: 1,
         borderColor: colors.border,
-        marginHorizontal: spacing.base,
-        overflow: 'hidden',
-    },
-});
-
-// ─── Row Styles ───────────────────────────────────────────────────────────────
-const rowStyles = StyleSheet.create({
-    row: {
+        paddingHorizontal: spacing.base,
+        paddingVertical: spacing.md,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: spacing.base,
+        marginBottom: spacing.lg,
     },
-    content: {
+    systemCardLeft: {
         flex: 1,
-        marginRight: spacing.sm,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
     },
-    label: {
+    bellWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: colors.primaryLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    systemCardText: { flex: 1 },
+    systemCardTitle: {
         ...typography.bodyMd,
         color: colors.textPrimary,
+        fontWeight: '600',
     },
-    subtitle: {
+    systemCardSubtitle: {
         ...typography.caption,
         color: colors.textMuted,
         marginTop: 2,
+    },
+    goBtn: {
+        backgroundColor: colors.textPrimary,
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xs + 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    goBtnText: {
+        ...typography.bodySm,
+        color: colors.buttonText,
+        fontWeight: '600',
+    },
+
+    // Nav rows
+    group: {
+        paddingHorizontal: spacing.base,
+    },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.lg,
+        gap: spacing.sm,
+    },
+    rowIconWrap: {
+        width: 32,
+        alignItems: 'center',
+    },
+    rowLabel: {
+        ...typography.bodyMd,
+        color: colors.textPrimary,
+        flex: 1,
+    },
+    divider: {
+        height: 0.5,
+        backgroundColor: colors.border,
     },
 });

@@ -7,7 +7,6 @@ import {
     StyleSheet,
     ScrollView,
     ActivityIndicator,
-    Modal,
     Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,6 +26,7 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { useCurrentMembership } from '@hooks/api/useMembership';
+import BottomSheet from '@components/common/BottomSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -282,38 +282,42 @@ const TIERS: TierData[] = [
 ];
 
 // ─── Info Bottom Sheet ────────────────────────────────────────────────────────
-function InfoSheet({ visible, content, onClose }: {
-    visible: boolean; content: InfoContent | null; onClose: () => void;
+function InfoSheet({ visible, content, onClose, isOverlay = false }: {
+    visible: boolean; content: InfoContent | null; onClose: () => void; isOverlay?: boolean;
 }): React.ReactElement {
     if (!content) return <></>;
+
+    
+    const footer = (
+        <View style={{ gap: spacing.sm }}>
+            <TouchableOpacity style={sheetBase.footerBtn} onPress={onClose}
+                activeOpacity={0.85} testID="info-okay">
+                <Text style={sheetBase.footerBtnText}>Okay</Text>
+            </TouchableOpacity>
+            {content.hasContactSupport && (
+                <TouchableOpacity style={sheetBase.secondaryBtn}
+                    onPress={() => Linking.openURL('mailto:support@livopay.com')}
+                    activeOpacity={0.85} testID="info-contact">
+                    <Text style={sheetBase.secondaryBtnText}>Contact Support</Text>
+                </TouchableOpacity>
+            )}
+        </View>
+    );
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View style={sheetBase.overlay}>
-                <View style={sheetBase.sheet}>
-                    <View style={sheetBase.handle} />
-                    <ScrollView style={{ paddingHorizontal: spacing.base }} showsVerticalScrollIndicator={false}>
-                        <View style={infoS.iconWrap}>
-                            <HugeiconsIcon icon={content.icon} size={24} color={colors.textPrimary} />
-                        </View>
-                        <Text style={infoS.title}>{content.title}</Text>
-                        <Text style={infoS.body}>{content.body}</Text>
-                    </ScrollView>
-                    <View style={sheetBase.footer}>
-                        <TouchableOpacity style={sheetBase.footerBtn} onPress={onClose}
-                            activeOpacity={0.85} testID="info-okay">
-                            <Text style={sheetBase.footerBtnText}>Okay</Text>
-                        </TouchableOpacity>
-                        {content.hasContactSupport && (
-                            <TouchableOpacity style={sheetBase.secondaryBtn}
-                                onPress={() => Linking.openURL('mailto:support@livopay.com')}
-                                activeOpacity={0.85} testID="info-contact">
-                                <Text style={sheetBase.secondaryBtnText}>Contact Support</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
+        <BottomSheet 
+            visible={visible} 
+            onClose={onClose}
+            isOverlay={isOverlay}
+            maxHeight="85%"
+            footer={footer}
+        >
+            <View style={infoS.iconWrap}>
+                <HugeiconsIcon icon={content.icon} size={24} color={colors.textPrimary} />
             </View>
-        </Modal>
+            <Text style={infoS.title}>{content.title}</Text>
+            <Text style={infoS.body}>{content.body}</Text>
+        </BottomSheet>
     );
 }
 
@@ -324,172 +328,168 @@ function UpgradeSheet({ visible, tier, onClose }: {
     const progress = 0;
     const progressPct = tier.inviteTarget > 0 ? (progress / tier.inviteTarget) * 100 : 0;
 
+    const footer = (
+        <TouchableOpacity style={sheetBase.footerBtn} onPress={onClose}
+            activeOpacity={0.85} testID="upgrade-okay">
+            <Text style={sheetBase.footerBtnText}>Okay</Text>
+        </TouchableOpacity>
+    );
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View style={sheetBase.overlay}>
-                <View style={[sheetBase.sheet, { maxHeight: '60%' }]}>
-                    <View style={sheetBase.handle} />
-                    <ScrollView style={{ paddingHorizontal: spacing.base }} showsVerticalScrollIndicator={false}>
-                        <Text style={upgradeS.title}>Upgrade</Text>
-
-                        {/* Invite Section */}
-                        <View style={upgradeS.section}>
-                            <View style={upgradeS.sectionHeader}>
-                                <Text style={upgradeS.sectionLabel}>Corporate Benefits</Text>
-                                <TouchableOpacity style={upgradeS.actionChip} activeOpacity={0.7}>
-                                    <Text style={upgradeS.actionChipText}>Invite</Text>
-                                </TouchableOpacity>
-                            </View>
-                            <Text style={upgradeS.progressLabel}>
-                                Friends Who Completed KYC2 ({progress}/{tier.inviteTarget})
-                            </Text>
-                            <View style={upgradeS.progressBar}>
-                                <View style={[upgradeS.progressFill, { width: `${progressPct}%` }]} />
-                            </View>
-                            <View style={upgradeS.progressRange}>
-                                <Text style={upgradeS.progressNum}>0</Text>
-                                <Text style={upgradeS.progressNum}>{tier.inviteTarget}</Text>
-                            </View>
-                        </View>
-
-                        {/* Pay Section */}
-                        <View style={upgradeS.section}>
-                            <View style={upgradeS.sectionHeader}>
-                                <Text style={upgradeS.sectionLabel}>Or Pay</Text>
-                                <TouchableOpacity style={upgradeS.actionChip} activeOpacity={0.7}>
-                                    <Text style={upgradeS.actionChipText}>Pay</Text>
-                                </TouchableOpacity>
-                            </View>
-                            <View style={upgradeS.priceCard}>
-                                <Text style={upgradeS.price}>${tier.upgradePrice}</Text>
-                            </View>
-                        </View>
-
-                        <Text style={upgradeS.note}>*You will be automatically upgraded once requirements are met</Text>
-                        <Text style={upgradeS.note}>*Choose between inviting friends or paying to upgrade</Text>
-                        <View style={{ height: spacing.base }} />
-                    </ScrollView>
-                    <View style={sheetBase.footer}>
-                        <TouchableOpacity style={sheetBase.footerBtn} onPress={onClose}
-                            activeOpacity={0.85} testID="upgrade-okay">
-                            <Text style={sheetBase.footerBtnText}>Okay</Text>
-                        </TouchableOpacity>
-                    </View>
+        <BottomSheet 
+            visible={visible} 
+            onClose={onClose}
+            title="Upgrade"
+            maxHeight="60%"
+            footer={footer}
+        >
+            {/* Invite Section */}
+            <View style={upgradeS.section}>
+                <View style={upgradeS.sectionHeader}>
+                    <Text style={upgradeS.sectionLabel}>Corporate Benefits</Text>
+                    <TouchableOpacity style={upgradeS.actionChip} activeOpacity={0.7}>
+                        <Text style={upgradeS.actionChipText}>Invite</Text>
+                    </TouchableOpacity>
+                </View>
+                <Text style={upgradeS.progressLabel}>
+                    Friends Who Completed KYC2 ({progress}/{tier.inviteTarget})
+                </Text>
+                <View style={upgradeS.progressBar}>
+                    <View style={[upgradeS.progressFill, { width: `${progressPct}%` }]} />
+                </View>
+                <View style={upgradeS.progressRange}>
+                    <Text style={upgradeS.progressNum}>0</Text>
+                    <Text style={upgradeS.progressNum}>{tier.inviteTarget}</Text>
                 </View>
             </View>
-        </Modal>
+
+            {/* Pay Section */}
+            <View style={upgradeS.section}>
+                <View style={upgradeS.sectionHeader}>
+                    <Text style={upgradeS.sectionLabel}>Or Pay</Text>
+                    <TouchableOpacity style={upgradeS.actionChip} activeOpacity={0.7}>
+                        <Text style={upgradeS.actionChipText}>Pay</Text>
+                    </TouchableOpacity>
+                </View>
+                <View style={upgradeS.priceCard}>
+                    <Text style={upgradeS.price}>${tier.upgradePrice}</Text>
+                </View>
+            </View>
+
+            <Text style={upgradeS.note}>*You will be automatically upgraded once requirements are met</Text>
+            <Text style={upgradeS.note}>*Choose between inviting friends or paying to upgrade</Text>
+            <View style={{ height: spacing.base }} />
+        </BottomSheet>
     );
 }
 
 // ─── Membership Bottom Sheet ──────────────────────────────────────────────────
-function MembershipSheet({ visible, onClose, onInfoPress }: {
-    visible: boolean; onClose: () => void; onInfoPress: (key: string) => void;
+function MembershipSheet({ visible, onClose }: {
+    visible: boolean; onClose: () => void;
 }): React.ReactElement {
     const [selectedTier, setSelectedTier] = useState(0);
     const [showUpgrade, setShowUpgrade] = useState(false);
+    const [infoKey, setInfoKey] = useState<string | null>(null);
     const tier = TIERS[selectedTier];
 
+    const footer = selectedTier > 0 ? (
+        <TouchableOpacity style={sheetBase.footerBtn}
+            onPress={() => tier.isInviteOnly ? setInfoKey('inviteAirdropOnly') : setShowUpgrade(true)}
+            activeOpacity={0.85} testID="upgrade-membership-btn">
+            <Text style={sheetBase.footerBtnText}>Upgrade Membership</Text>
+        </TouchableOpacity>
+    ) : undefined;
+
+    // Both overlays rendered inside this Modal so iOS can stack them properly
+    const overlays = (
+        <>
+            <InfoSheet
+                visible={infoKey !== null}
+                content={infoKey ? INFO_SHEETS[infoKey] ?? null : null}
+                onClose={() => setInfoKey(null)}
+                isOverlay={true}
+            />
+            <UpgradeSheet visible={showUpgrade} tier={tier} onClose={() => setShowUpgrade(false)} />
+        </>
+    );
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View style={sheetBase.overlay}>
-                <View style={[sheetBase.sheet, { height: '90%' }]}>
-                    <View style={sheetBase.handle} />
-                    <TouchableOpacity style={sheetBase.backBtn} onPress={onClose}
-                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} testID="membership-back">
-                        <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={22} color={colors.textPrimary} />
+        <BottomSheet
+            visible={visible}
+            onClose={onClose}
+            showBackButton={true}
+            maxHeight="90%"
+            footer={footer}
+            overlays={overlays}
+        >
+            {/* Tier Card */}
+            <Image
+                source={CARD_IMAGES[tier.id]}
+                style={tierS.cardImage}
+                resizeMode="contain"
+                accessibilityLabel={`${tier.name} membership card`}
+            />
+
+            <Text style={memberS.heading}>Membership</Text>
+
+            {/* Tier Tabs */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={memberS.tabsRow}>
+                {TIERS.map((t, idx) => (
+                    <TouchableOpacity key={t.id}
+                        style={[memberS.tab, selectedTier === idx && memberS.tabActive]}
+                        onPress={() => setSelectedTier(idx)} activeOpacity={0.7}
+                        testID={`tier-tab-${t.id}`}>
+                        <Text style={[memberS.tabText, selectedTier === idx && memberS.tabTextActive]}>
+                            {t.name}
+                        </Text>
                     </TouchableOpacity>
+                ))}
+            </ScrollView>
 
-                    <ScrollView style={{ flex: 1, paddingHorizontal: spacing.base }} showsVerticalScrollIndicator={false}>
-                        {/* Tier Card */}
-                        <Image
-                            source={CARD_IMAGES[tier.id]}
-                            style={tierS.cardImage}
-                            resizeMode="contain"
-                            accessibilityLabel={`${tier.name} membership card`}
-                        />
-
-                        <Text style={memberS.heading}>Membership</Text>
-
-                        {/* Tier Tabs */}
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={memberS.tabsRow}>
-                            {TIERS.map((t, idx) => (
-                                <TouchableOpacity key={t.id}
-                                    style={[memberS.tab, selectedTier === idx && memberS.tabActive]}
-                                    onPress={() => setSelectedTier(idx)} activeOpacity={0.7}
-                                    testID={`tier-tab-${t.id}`}>
-                                    <Text style={[memberS.tabText, selectedTier === idx && memberS.tabTextActive]}>
-                                        {t.name}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-
-                        {/* All Benefit Sections */}
-                        {tier.sections.map((section) => (
-                            <View key={section.title}>
-                                <View style={memberS.sectionHeader}>
-                                    <Text style={memberS.sectionTitle}>{section.title}</Text>
-                                    {section.infoKey && (
-                                        <TouchableOpacity onPress={() => onInfoPress(section.infoKey!)}
-                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                                            <HugeiconsIcon icon={InformationCircleFreeIcons} size={16} color={colors.textMuted} />
-                                        </TouchableOpacity>
-                                    )}
-                                </View>
-                                <View style={memberS.sectionCard}>
-                                    {section.items.map((item, idx) => (
-                                        <View key={item.label + idx}>
-                                            {idx > 0 && <View style={memberS.divider} />}
-                                            <View style={memberS.benefitRow}>
-                                                <View style={memberS.benefitLabel}>
-                                                    <Text style={memberS.itemText}>{item.label}</Text>
-                                                    {item.infoKey && (
-                                                        <TouchableOpacity onPress={() => onInfoPress(item.infoKey!)}
-                                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                                                            <HugeiconsIcon icon={InformationCircleFreeIcons} size={14} color={colors.textMuted} />
-                                                        </TouchableOpacity>
-                                                    )}
-                                                </View>
-                                                <Text style={memberS.itemValue}>{item.value}</Text>
-                                            </View>
-                                        </View>
-                                    ))}
+            {/* All Benefit Sections */}
+            {tier.sections.map((section) => (
+                <View key={section.title}>
+                    <View style={memberS.sectionHeader}>
+                        <Text style={memberS.sectionTitle}>{section.title}</Text>
+                        {section.infoKey && (
+                            <TouchableOpacity onPress={() => setInfoKey(section.infoKey!)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <HugeiconsIcon icon={InformationCircleFreeIcons} size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <View style={memberS.sectionCard}>
+                        {section.items.map((item, idx) => (
+                            <View key={item.label + idx}>
+                                {idx > 0 && <View style={memberS.divider} />}
+                                <View style={memberS.benefitRow}>
+                                    <View style={memberS.benefitLabel}>
+                                        <Text style={memberS.itemText}>{item.label}</Text>
+                                        {item.infoKey && (
+                                            <TouchableOpacity onPress={() => setInfoKey(item.infoKey!)}
+                                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                                <HugeiconsIcon icon={InformationCircleFreeIcons} size={14} color={colors.textMuted} />
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                    <Text style={memberS.itemValue}>{item.value}</Text>
                                 </View>
                             </View>
                         ))}
+                    </View>
+                </View>
+            ))}
 
-                        {/* Others */}
-                        <Text style={memberS.otherTitle}>Others</Text>
-                        <View style={memberS.sectionCard}>
-                            <View style={memberS.benefitRow}>
-                                <Text style={memberS.itemText}>{tier.other}</Text>
-                            </View>
-                        </View>
-                        <View style={{ height: spacing.xxl }} />
-                    </ScrollView>
-
-                    {/* Upgrade Button — only shows for non-Basic tiers */}
-                    {selectedTier > 0 && (
-                        <View style={sheetBase.footer}>
-                            <TouchableOpacity style={sheetBase.footerBtn}
-                                onPress={() => {
-                                    if (tier.isInviteOnly) {
-                                        onInfoPress('inviteAirdropOnly');
-                                    } else {
-                                        setShowUpgrade(true);
-                                    }
-                                }}
-                                activeOpacity={0.85} testID="upgrade-membership-btn">
-                                <Text style={sheetBase.footerBtnText}>Upgrade Membership</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+            {/* Others */}
+            <Text style={memberS.otherTitle}>Others</Text>
+            <View style={memberS.sectionCard}>
+                <View style={memberS.benefitRow}>
+                    <Text style={memberS.itemText}>{tier.other}</Text>
                 </View>
             </View>
-
-            <UpgradeSheet visible={showUpgrade} tier={tier} onClose={() => setShowUpgrade(false)} />
-        </Modal>
+            <View style={{ height: spacing.xxl }} />
+        </BottomSheet>
     );
 }
 
@@ -522,7 +522,7 @@ export default function StatusUpgradeScreen(): React.ReactElement {
 
     const [infoKey, setInfoKey] = useState<string | null>(null);
     const [showMembership, setShowMembership] = useState(false);
-
+    
     const currentTierIdx = useMemo(() => {
         const apiTier = currentMembership?.currentTier;
         const idx = TIERS.findIndex((t) => t.id === apiTier);
@@ -532,7 +532,9 @@ export default function StatusUpgradeScreen(): React.ReactElement {
     const tier = TIERS[currentTierIdx];
     const mainBenefits = tier.sections[0]?.items ?? [];
 
-    const onInfoPress = useCallback((key: string) => setInfoKey(key), []);
+    const onInfoPress = useCallback((key: string) => {
+        setInfoKey(key);
+    }, []);
 
     return (
         <SafeAreaView style={mainS.safe} edges={['top']}>
@@ -587,15 +589,15 @@ export default function StatusUpgradeScreen(): React.ReactElement {
                 </>
             )}
 
-            {/* Info Sheet */}
-            <InfoSheet visible={infoKey !== null} content={infoKey ? INFO_SHEETS[infoKey] ?? null : null}
-                onClose={() => setInfoKey(null)} />
-
-            {/* Membership Sheet */}
-            <MembershipSheet visible={showMembership}
-                onClose={() => setShowMembership(false)}
-                onInfoPress={(key) => { setShowMembership(false); setTimeout(() => setInfoKey(key), 350); }}
+            {/* Info Sheet for main screen benefit rows */}
+            <InfoSheet
+                visible={infoKey !== null}
+                content={infoKey ? INFO_SHEETS[infoKey] ?? null : null}
+                onClose={() => setInfoKey(null)}
             />
+
+            {/* Membership Sheet — InfoSheet/UpgradeSheet rendered inside via overlays prop */}
+            <MembershipSheet visible={showMembership} onClose={() => setShowMembership(false)} />
         </SafeAreaView>
     );
 }
@@ -632,9 +634,29 @@ const tierS = StyleSheet.create({
 
 // ─── Shared Sheet Base ────────────────────────────────────────────────────────
 const sheetBase = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
-    sheet: { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: spacing.base },
-    handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.sm },
+    overlay: { 
+        flex: 1, 
+        backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+        justifyContent: 'flex-end',
+        zIndex: 1000 
+    },
+    sheet: { 
+        backgroundColor: colors.background, 
+        borderTopLeftRadius: 24, 
+        borderTopRightRadius: 24, 
+        maxHeight: '85%',
+        minHeight: 300
+    },
+    handleContainer: {
+        paddingVertical: spacing.base,
+        alignItems: 'center',
+    },
+    handle: { 
+        width: 40, 
+        height: 4, 
+        borderRadius: 2, 
+        backgroundColor: colors.border 
+    },
     backBtn: { paddingHorizontal: spacing.base, paddingBottom: spacing.sm, alignSelf: 'flex-start' },
     footer: { paddingHorizontal: spacing.base, paddingVertical: spacing.base, borderTopWidth: 0.5, borderTopColor: colors.border },
     footerBtn: { backgroundColor: colors.textPrimary, borderRadius: borderRadius.full, paddingVertical: spacing.base, alignItems: 'center', justifyContent: 'center' },

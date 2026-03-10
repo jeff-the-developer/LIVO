@@ -36,6 +36,19 @@ import BiometricVerifyScreen from '@screens/profile/BiometricVerifyScreen';
 import VerifyOTPScreen from '@screens/auth/VerifyOTPScreen';
 import CreateUsernameScreen from '@screens/auth/CreateUsernameScreen';
 import PrimaryNationalityScreen from '@screens/kyc/PrimaryNationalityScreen';
+import LivoBusinessScreen from '@screens/profile/LivoBusinessScreen';
+import SwitchAccountScreen from '@screens/profile/SwitchAccountScreen';
+import LoginScreen from '@screens/auth/LoginScreen';
+import RegisterScreen from '@screens/auth/RegisterScreen';
+import ForgotPasswordScreen from '@screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '@screens/auth/ResetPasswordScreen';
+import SetPasswordScreen from '@screens/auth/SetPasswordScreen';
+import AccountTypeScreen from '@screens/auth/AccountTypeScreen';
+import PINSetupScreen from '@screens/auth/PINSetupScreen';
+import BiometricSetupScreen from '@screens/auth/BiometricSetupScreen';
+import NotifTransactionsScreen from '@screens/profile/NotifTransactionsScreen';
+import NotifAccountActivitiesScreen from '@screens/profile/NotifAccountActivitiesScreen';
+import NotifMiscellaneousScreen from '@screens/profile/NotifMiscellaneousScreen';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -81,6 +94,19 @@ export default function AppStack(): React.ReactElement {
             <Stack.Screen name="AntiPhishing" component={AntiPhishingScreen} />
             <Stack.Screen name="BiometricVerify" component={BiometricVerifyScreen} />
             <Stack.Screen name="PrimaryNationality" component={PrimaryNationalityScreen} />
+            <Stack.Screen name="LivoBusiness" component={LivoBusinessScreen} />
+            <Stack.Screen name="SwitchAccount" component={SwitchAccountScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
+            <Stack.Screen name="AccountType" component={AccountTypeScreen} />
+            <Stack.Screen name="PINSetup" component={PINSetupScreen} />
+            <Stack.Screen name="BiometricSetup" component={BiometricSetupScreen} />
+            <Stack.Screen name="NotifTransactions" component={NotifTransactionsScreen} />
+            <Stack.Screen name="NotifAccountActivities" component={NotifAccountActivitiesScreen} />
+            <Stack.Screen name="NotifMiscellaneous" component={NotifMiscellaneousScreen} />
             <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
             <Stack.Screen name="CreateUsername" component={CreateUsernameScreen} />
         </Stack.Navigator>

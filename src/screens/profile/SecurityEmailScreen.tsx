@@ -5,7 +5,6 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Modal,
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
@@ -23,6 +22,7 @@ import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import BottomSheet from '@components/common/BottomSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -36,42 +36,29 @@ function SecurityTipSheet({
     onOkay: () => void;
     onCancel: () => void;
 }): React.ReactElement {
+    const footer = (
+        <View style={{ gap: spacing.sm }}>
+            <TouchableOpacity style={sheetS.btnPrimary} onPress={onOkay} activeOpacity={0.85} testID="tip-okay">
+                <Text style={sheetS.btnPrimaryText}>OKAY</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={sheetS.btnSecondary} onPress={onCancel} activeOpacity={0.85} testID="tip-cancel">
+                <Text style={sheetS.btnSecondaryText}>Cancel</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
-            <View style={sheetS.overlay}>
-                <View style={sheetS.sheet}>
-                    <View style={sheetS.handle} />
-                    <View style={sheetS.content}>
-                        {/* Person icon with gear */}
-                        <View style={sheetS.iconCircle}>
-                            <HugeiconsIcon icon={UserGroupFreeIcons} size={28} color={colors.textPrimary} />
-                        </View>
-                        <Text style={sheetS.title}>Security Tip</Text>
-                        <Text style={sheetS.body}>
-                            You wont be able to make transfers within the next 12 hours after changing your email.
-                        </Text>
-                    </View>
-                    <View style={sheetS.footer}>
-                        <TouchableOpacity
-                            style={sheetS.btnPrimary}
-                            onPress={onOkay}
-                            activeOpacity={0.85}
-                            testID="tip-okay"
-                        >
-                            <Text style={sheetS.btnPrimaryText}>OKAY</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={sheetS.btnSecondary}
-                            onPress={onCancel}
-                            activeOpacity={0.85}
-                            testID="tip-cancel"
-                        >
-                            <Text style={sheetS.btnSecondaryText}>Cancel</Text>
-                        </TouchableOpacity>
-                    </View>
+        <BottomSheet visible={visible} onClose={onCancel} footer={footer}>
+            <View style={sheetS.content}>
+                <View style={sheetS.iconCircle}>
+                    <HugeiconsIcon icon={UserGroupFreeIcons} size={28} color={colors.textPrimary} />
                 </View>
+                <Text style={sheetS.title}>Security Tip</Text>
+                <Text style={sheetS.body}>
+                    You wont be able to make transfers within the next 12 hours after changing your email.
+                </Text>
             </View>
-        </Modal>
+        </BottomSheet>
     );
 }
 
@@ -237,17 +224,7 @@ const s = StyleSheet.create({
 
 // ─── Sheet Styles ─────────────────────────────────────────────────────────────
 const sheetS = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
-    sheet: {
-        backgroundColor: colors.background,
-        borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        paddingTop: spacing.base,
-    },
-    handle: {
-        width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border,
-        alignSelf: 'center', marginBottom: spacing.lg,
-    },
-    content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },
+    content: { paddingBottom: spacing.xl },
     iconCircle: {
         width: 52, height: 52, borderRadius: 26,
         backgroundColor: palette.green50,
@@ -260,7 +237,6 @@ const sheetS = StyleSheet.create({
     },
     body: { ...typography.bodyMd, color: colors.textSecondary, lineHeight: 22 },
 
-    footer: { paddingHorizontal: spacing.base, paddingBottom: spacing.base, gap: spacing.sm },
     btnPrimary: {
         backgroundColor: colors.textPrimary, borderRadius: borderRadius.full,
         paddingVertical: spacing.base, alignItems: 'center', justifyContent: 'center',

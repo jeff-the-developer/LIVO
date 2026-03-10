@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import {
   FileValidationFreeIcons,
   InformationSquareFreeIcons,
   Copy01FreeIcons,
+  Cancel01FreeIcons,
 } from '@hugeicons/core-free-icons';
 import { colors, palette } from '@theme/colors';
 import { spacing } from '@theme/spacing';
@@ -36,6 +37,7 @@ import Avatar from '@components/common/Avatar';
 import MenuItem from '@components/common/MenuItem';
 import HighlightCard from '@components/common/HighlightCard';
 import KYCStatusBanner from '@components/kyc/KYCStatusBanner';
+import BottomSheet from '@components/common/BottomSheet';
 import { useKYCStatus } from '@hooks/api/useKYC';
 import type { AppStackParamList } from '@app-types/navigation.types';
 
@@ -65,20 +67,29 @@ export default function ProfileScreen(): React.ReactElement {
   const logout = useAuthStore((s) => s.logout);
   const { data: kycStatus, isLoading: kycLoading } = useKYCStatus();
 
+  const [showAccessDenied, setShowAccessDenied] = useState(false);
+  const [showSignOut, setShowSignOut] = useState(false);
+
   const username = user?.username ?? 'User';
   const uid = user?.svid ?? user?.user_id ?? '—';
   const membershipTier = user?.membership_tier ?? 'Standard';
 
+  const isKYC1Verified =
+    !kycLoading &&
+    (kycStatus?.level ?? user?.kyc_level ?? 0) >= 1 &&
+    kycStatus?.status === 'approved';
+
+  const onLivoBusiness = () => {
+    if (isKYC1Verified) {
+      navigation.navigate('LivoBusiness');
+    } else {
+      setShowAccessDenied(true);
+    }
+  };
+
   const onCopyUID = async () => {
     await Clipboard.setStringAsync(uid);
     Alert.alert('Copied', 'UID copied to clipboard');
-  };
-
-  const onSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: logout },
-    ]);
   };
 
   const comingSoon = (label: string) => () =>
@@ -213,7 +224,7 @@ export default function ProfileScreen(): React.ReactElement {
         <MenuItem
           icon={Briefcase05FreeIcons}
           label="Livo Business"
-          onPress={comingSoon('Livo Business')}
+          onPress={onLivoBusiness}
           testID="profile-menu-business"
         />
 
@@ -247,7 +258,7 @@ export default function ProfileScreen(): React.ReactElement {
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.switchBtn}
-            onPress={comingSoon('Switch Account')}
+            onPress={() => navigation.navigate('SwitchAccount')}
             activeOpacity={0.85}
             accessibilityLabel="Switch account"
             accessibilityRole="button"
@@ -258,7 +269,7 @@ export default function ProfileScreen(): React.ReactElement {
 
           <TouchableOpacity
             style={styles.signOutBtn}
-            onPress={onSignOut}
+            onPress={() => setShowSignOut(true)}
             activeOpacity={0.85}
             accessibilityLabel="Sign out"
             accessibilityRole="button"
@@ -271,6 +282,77 @@ export default function ProfileScreen(): React.ReactElement {
         {/* Bottom padding for tab bar */}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
+
+      {/* ─── Sign Out Sheet ──────────────────────────────────────────────── */}
+      <BottomSheet
+        visible={showSignOut}
+        onClose={() => setShowSignOut(false)}
+        footer={
+          <View style={styles.signOutFooter}>
+            <TouchableOpacity
+              style={styles.proceedSignOutBtn}
+              onPress={() => {
+                setShowSignOut(false);
+                logout();
+              }}
+              activeOpacity={0.85}
+              testID="signout-confirm"
+            >
+              <Text style={styles.proceedSignOutText}>Proceed to Sign Out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => setShowSignOut(false)}
+              activeOpacity={0.85}
+              testID="signout-cancel"
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      >
+        <Text style={styles.signOutSheetTitle}>Sign Out</Text>
+        <Text style={styles.signOutSheetBody}>
+          You are about to log out of your current account.{'\n'}Do you want to continue?
+        </Text>
+      </BottomSheet>
+
+      {/* ─── Access Denied Sheet ─────────────────────────────────────────── */}
+      <BottomSheet
+        visible={showAccessDenied}
+        onClose={() => setShowAccessDenied(false)}
+        footer={
+          <View style={styles.accessDeniedFooter}>
+            <TouchableOpacity
+              style={styles.verifyBtn}
+              onPress={() => {
+                setShowAccessDenied(false);
+                navigation.navigate('Verification');
+              }}
+              activeOpacity={0.85}
+              testID="access-denied-verify"
+            >
+              <Text style={styles.verifyBtnText}>Complete Verification</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => setShowAccessDenied(false)}
+              activeOpacity={0.85}
+              testID="access-denied-cancel"
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      >
+        <View style={styles.accessDeniedIconWrap}>
+          <HugeiconsIcon icon={Cancel01FreeIcons} size={28} color={palette.red} />
+        </View>
+        <Text style={styles.accessDeniedTitle}>Access Denied</Text>
+        <Text style={styles.accessDeniedBody}>
+          This feature requires <Text style={{ fontWeight: '700' }}>KYC1</Text> verification. Please complete verification to unlock access
+        </Text>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -356,6 +438,86 @@ const styles = StyleSheet.create({
   signOutText: {
     ...typography.bodyMd,
     color: palette.red,
+    fontWeight: '600',
+  },
+
+  // Sign Out Sheet
+  signOutSheetTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
+  },
+  signOutSheetBody: {
+    ...typography.bodyMd,
+    color: colors.textSecondary,
+    marginBottom: spacing.xxl,
+  },
+  signOutFooter: {
+    gap: spacing.sm,
+  },
+  proceedSignOutBtn: {
+    backgroundColor: palette.red,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.base,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  proceedSignOutText: {
+    ...typography.bodyMd,
+    color: '#fff',
+    fontWeight: '600',
+  },
+
+  // Access Denied Sheet
+  accessDeniedIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: palette.redLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.base,
+  },
+  accessDeniedTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  accessDeniedBody: {
+    ...typography.bodyMd,
+    color: colors.textSecondary,
+    marginBottom: spacing.xl,
+  },
+  accessDeniedFooter: {
+    gap: spacing.sm,
+  },
+  verifyBtn: {
+    backgroundColor: colors.textPrimary,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.base,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  verifyBtnText: {
+    ...typography.bodyMd,
+    color: colors.buttonText,
+    fontWeight: '600',
+  },
+  cancelBtn: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.base,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  cancelBtnText: {
+    ...typography.bodyMd,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
 });

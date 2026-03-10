@@ -1,3 +1,4 @@
+import '@i18n'; // initialize i18next before any screen renders
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -11,6 +12,7 @@ import {
     Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@stores/authStore';
+import { useAppStore } from '@stores/appStore';
 import { queryClient } from '@config/queryClient';
 import { colors } from '@theme/colors';
 import AppNavigator from './navigation/AppNavigator';
@@ -24,17 +26,19 @@ export default function RootLayout(): React.ReactElement {
     });
 
     const hydrate = useAuthStore((s) => s.hydrate);
-    const isHydrated = useAuthStore((s) => s.isHydrated);
+    const isAuthHydrated = useAuthStore((s) => s.isHydrated);
+    const hydrateDisplay = useAppStore((s) => s.hydrate);
+    const isDisplayHydrated = useAppStore((s) => s.isHydrated);
     const [hydrateStarted, setHydrateStarted] = useState(false);
 
     useEffect(() => {
         if (!hydrateStarted) {
             setHydrateStarted(true);
-            void hydrate();
+            void Promise.all([hydrate(), hydrateDisplay()]);
         }
-    }, [hydrate, hydrateStarted]);
+    }, [hydrate, hydrateDisplay, hydrateStarted]);
 
-    const isReady = fontsLoaded && isHydrated;
+    const isReady = fontsLoaded && isAuthHydrated && isDisplayHydrated;
 
     if (!isReady) {
         return (

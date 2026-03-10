@@ -9,7 +9,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
@@ -33,6 +33,7 @@ const livoIcon = require('@assets/images/branding/logo_gradient_icon.png');
 export default function SupportChatScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
     const [message, setMessage] = useState('');
+    const insets = useSafeAreaInsets();
 
     const onSend = () => {
         if (!message.trim()) return;
@@ -68,7 +69,7 @@ export default function SupportChatScreen(): React.ReactElement {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={0}
             >
-                <View style={s.inputBar}>
+                <View style={[s.inputBar, { marginBottom: insets.bottom + spacing.sm }]}>
                     <TextInput
                         style={s.input}
                         value={message}
@@ -82,16 +83,15 @@ export default function SupportChatScreen(): React.ReactElement {
                     />
                     <View style={s.inputActions}>
                         <TouchableOpacity
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={s.plusBtn}
                             activeOpacity={0.7}
                             testID="chat-attach"
                         >
-                            <HugeiconsIcon icon={PlusSignFreeIcons} size={20} color={colors.textMuted} />
+                            <HugeiconsIcon icon={PlusSignFreeIcons} size={18} color={colors.textMuted} />
                         </TouchableOpacity>
                         <View style={{ flex: 1 }} />
                         <TouchableOpacity
                             onPress={onSend}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             activeOpacity={0.7}
                             testID="chat-send"
                         >
@@ -131,11 +131,14 @@ const s = StyleSheet.create({
     emptyIcon: { width: 80, height: 80, borderRadius: 20, marginBottom: spacing.base },
     emptyText: { ...typography.bodyMd, color: colors.textSecondary },
 
-    // Input Bar
+    // Input Bar — floating card, all corners rounded
     inputBar: {
-        backgroundColor: '#F2F2F2',
-        borderTopLeftRadius: 20, borderTopRightRadius: 20,
-        paddingHorizontal: spacing.base, paddingTop: spacing.md, paddingBottom: spacing.base,
+        backgroundColor: '#F2F2F7',
+        borderRadius: 20,
+        marginHorizontal: spacing.base,
+        paddingHorizontal: spacing.base,
+        paddingTop: spacing.md,
+        paddingBottom: spacing.sm,
     },
     input: {
         ...typography.bodyMd, color: colors.textPrimary,
@@ -144,9 +147,14 @@ const s = StyleSheet.create({
     inputActions: {
         flexDirection: 'row', alignItems: 'center',
     },
+    plusBtn: {
+        width: 32, height: 32, borderRadius: 16,
+        backgroundColor: '#E5E5EA',
+        alignItems: 'center', justifyContent: 'center',
+    },
     sendBtn: {
         width: 32, height: 32, borderRadius: 16,
-        backgroundColor: colors.border,
+        backgroundColor: '#E5E5EA',
         alignItems: 'center', justifyContent: 'center',
     },
     sendBtnActive: {

@@ -23,11 +23,11 @@ import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
-import type { AuthStackParamList } from '@app-types/navigation.types';
+import type { RootNavigatorParamList } from '@app-types/navigation.types';
 import { useRegister } from '@hooks/api/useAuth';
 import { handleApiError } from '@utils/errorHandler';
 
-type Nav = NativeStackNavigationProp<AuthStackParamList>;
+type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 const registerSchema = z.object({

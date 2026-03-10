@@ -25,15 +25,15 @@ import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
-import type { AuthStackParamList } from '@app-types/navigation.types';
+import type { RootNavigatorParamList } from "@app-types/navigation.types";
 import {
     useCheckUsername,
     useCreateUsername,
     handleApiError,
 } from '@hooks/api/useAuth';
 
-type Nav = NativeStackNavigationProp<AuthStackParamList>;
-type RouteProps = NativeStackScreenProps<AuthStackParamList, 'CreateUsername'>['route'];
+type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
+type RouteProps = NativeStackScreenProps<RootNavigatorParamList, 'CreateUsername'>['route'];
 
 const MIN_LEN = 5;
 const MAX_LEN = 12;
@@ -225,8 +225,12 @@ export default function CreateUsernameScreen(): React.ReactElement {
             if (!isRegister) {
                 // Edit profile mode — just go back
                 navigation.goBack();
+            } else {
+                // Register mode — navigate to MainTabs.
+                // In the original auth flow AppNavigator switches stacks automatically,
+                // but when reached from AppStack (Add New Account), we must navigate explicitly.
+                navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
             }
-            // Register mode — useCreateUsername hook auto-logs in → MainTabs
         } catch (e) {
             const apiErr = handleApiError(e);
             Alert.alert(apiErr.title, apiErr.message);

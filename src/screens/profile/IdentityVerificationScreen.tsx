@@ -4,7 +4,6 @@ import {
     Text,
     TouchableOpacity,
     StyleSheet,
-    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +20,7 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import type { AccountType } from '@api/kyc';
+import BottomSheet from '@components/common/BottomSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -34,47 +34,39 @@ function GetReadySheet({
     onReady: () => void;
     onCancel: () => void;
 }): React.ReactElement {
+    const footer = (
+        <View style={{ gap: spacing.sm }}>
+            <TouchableOpacity
+                style={sheetStyles.readyBtn}
+                onPress={onReady}
+                activeOpacity={0.85}
+                accessibilityLabel="I'm Ready"
+                accessibilityRole="button"
+                testID="kyc-ready-btn"
+            >
+                <Text style={sheetStyles.readyText}>I'm Ready</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={sheetStyles.cancelBtn}
+                onPress={onCancel}
+                activeOpacity={0.85}
+                accessibilityLabel="Cancel"
+                accessibilityRole="button"
+                testID="kyc-cancel-btn"
+            >
+                <Text style={sheetStyles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     return (
-        <Modal
-            animationType="slide"
-            transparent
-            visible={visible}
-            onRequestClose={onCancel}
-        >
-            <View style={sheetStyles.overlay}>
-                <View style={sheetStyles.sheet}>
-                    <View style={sheetStyles.handleBar} />
-
-                    <Text style={sheetStyles.title}>Get Ready</Text>
-                    <Text style={sheetStyles.body}>
-                        Prepare government-issued ID (e.g., ID/Passport) in original
-                        form or as photo/scan
-                    </Text>
-
-                    <TouchableOpacity
-                        style={sheetStyles.readyBtn}
-                        onPress={onReady}
-                        activeOpacity={0.85}
-                        accessibilityLabel="I'm Ready"
-                        accessibilityRole="button"
-                        testID="kyc-ready-btn"
-                    >
-                        <Text style={sheetStyles.readyText}>I'm Ready</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={sheetStyles.cancelBtn}
-                        onPress={onCancel}
-                        activeOpacity={0.85}
-                        accessibilityLabel="Cancel"
-                        accessibilityRole="button"
-                        testID="kyc-cancel-btn"
-                    >
-                        <Text style={sheetStyles.cancelText}>Cancel</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </Modal>
+        <BottomSheet visible={visible} onClose={onCancel} footer={footer}>
+            <Text style={sheetStyles.title}>Get Ready</Text>
+            <Text style={sheetStyles.body}>
+                Prepare government-issued ID (e.g., ID/Passport) in original
+                form or as photo/scan
+            </Text>
+        </BottomSheet>
     );
 }
 
@@ -249,27 +241,6 @@ const cardStyles = StyleSheet.create({
 
 // ─── Sheet Styles ─────────────────────────────────────────────────────────────
 const sheetStyles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: colors.overlay,
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        backgroundColor: colors.background,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        paddingHorizontal: spacing.base,
-        paddingBottom: spacing.xl,
-        paddingTop: spacing.md,
-    },
-    handleBar: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.border,
-        alignSelf: 'center',
-        marginBottom: spacing.lg,
-    },
     title: {
         ...typography.h3,
         color: colors.textPrimary,

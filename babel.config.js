@@ -20,6 +20,7 @@ module.exports = function (api) {
                         '@app-types': './src/types',
                         '@config': './src/config',
                         '@assets': './src/assets',
+                        '@i18n': './src/i18n/index',
                     },
                 },
             ],

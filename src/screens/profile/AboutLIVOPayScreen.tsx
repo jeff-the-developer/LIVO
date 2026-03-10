@@ -5,7 +5,6 @@ import {
     Image,
     TouchableOpacity,
     StyleSheet,
-    Modal,
     Linking,
     Platform,
 } from 'react-native';
@@ -25,6 +24,7 @@ import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import BottomSheet from '@components/common/BottomSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -104,72 +104,45 @@ function RatingSheet({
         }, 300);
     };
 
+    const footer = (
+        <View style={{ gap: spacing.sm }}>
+            {step === 'rate' ? (
+                <TouchableOpacity
+                    style={[sheetS.btn, rating > 0 ? sheetS.btnActive : sheetS.btnDisabled]}
+                    onPress={onSubmit} activeOpacity={0.85} disabled={rating === 0} testID="submit-rating"
+                >
+                    <Text style={[sheetS.btnText, rating > 0 ? sheetS.btnTextActive : null]}>Submit Rating</Text>
+                </TouchableOpacity>
+            ) : (
+                <TouchableOpacity style={[sheetS.btn, sheetS.btnActive]} onPress={onLeaveComments} activeOpacity={0.85} testID="leave-comments">
+                    <Text style={[sheetS.btnText, sheetS.btnTextActive]}>Leave Comments</Text>
+                </TouchableOpacity>
+            )}
+            <TouchableOpacity style={sheetS.btnSecondary} onPress={onDismiss} activeOpacity={0.85} testID="rating-later">
+                <Text style={sheetS.btnSecondaryText}>Maybe Later</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onDismiss}>
-            <View style={sheetS.overlay}>
-                {step === 'rate' ? (
-                    <View style={sheetS.sheet}>
-                        <View style={sheetS.handle} />
-                        <View style={sheetS.rateContent}>
-                            <Image source={livoIcon} style={sheetS.rateIcon} resizeMode="contain" />
-                            <Text style={sheetS.rateTitle}>Enjoying LIVOPay?</Text>
-                            <StarRating rating={rating} onRate={setRating} />
-                        </View>
-                        <View style={sheetS.footer}>
-                            <TouchableOpacity
-                                style={[sheetS.btn, rating > 0 ? sheetS.btnActive : sheetS.btnDisabled]}
-                                onPress={onSubmit}
-                                activeOpacity={0.85}
-                                disabled={rating === 0}
-                                testID="submit-rating"
-                            >
-                                <Text style={[sheetS.btnText, rating > 0 ? sheetS.btnTextActive : null]}>
-                                    Submit Rating
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={sheetS.btnSecondary}
-                                onPress={onDismiss}
-                                activeOpacity={0.85}
-                                testID="rating-later"
-                            >
-                                <Text style={sheetS.btnSecondaryText}>Maybe Later</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                ) : (
-                    <View style={thankS.container}>
-                        <View style={thankS.centerContent}>
-                            {/* Large circle placeholder */}
-                            <View style={thankS.circle} />
-                            <Text style={thankS.title}>THANK YOU FOR{'\n'}YOUR SUPPORT</Text>
-                            <Text style={thankS.subtitle}>
-                                We're committed to delivering the best experience possible.
-                                If you're enjoying the app, we'd appreciate your feedback on the App Store
-                            </Text>
-                        </View>
-                        <View style={sheetS.footer}>
-                            <TouchableOpacity
-                                style={[sheetS.btn, sheetS.btnActive]}
-                                onPress={onLeaveComments}
-                                activeOpacity={0.85}
-                                testID="leave-comments"
-                            >
-                                <Text style={[sheetS.btnText, sheetS.btnTextActive]}>Leave Comments</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={sheetS.btnSecondary}
-                                onPress={onDismiss}
-                                activeOpacity={0.85}
-                                testID="thankyou-later"
-                            >
-                                <Text style={sheetS.btnSecondaryText}>Maybe Later</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-            </View>
-        </Modal>
+        <BottomSheet visible={visible} onClose={onDismiss} footer={footer}>
+            {step === 'rate' ? (
+                <View style={sheetS.rateContent}>
+                    <Image source={livoIcon} style={sheetS.rateIcon} resizeMode="contain" />
+                    <Text style={sheetS.rateTitle}>Enjoying LIVOPay?</Text>
+                    <StarRating rating={rating} onRate={setRating} />
+                </View>
+            ) : (
+                <View style={thankS.centerContent}>
+                    <View style={thankS.circle} />
+                    <Text style={thankS.title}>THANK YOU FOR{'\n'}YOUR SUPPORT</Text>
+                    <Text style={thankS.subtitle}>
+                        We're committed to delivering the best experience possible.
+                        If you're enjoying the app, we'd appreciate your feedback on the App Store
+                    </Text>
+                </View>
+            )}
+        </BottomSheet>
     );
 }
 
@@ -181,32 +154,23 @@ function UpdateSheet({
     visible: boolean;
     onClose: () => void;
 }): React.ReactElement {
+    const footer = (
+        <TouchableOpacity style={[sheetS.btn, sheetS.btnActive]} onPress={onClose} activeOpacity={0.85} testID="update-okay">
+            <Text style={[sheetS.btnText, sheetS.btnTextActive]}>Okay</Text>
+        </TouchableOpacity>
+    );
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View style={sheetS.overlay}>
-                <View style={sheetS.sheet}>
-                    <View style={sheetS.handle} />
-                    <View style={sheetS.updateContent}>
-                        <View style={sheetS.alertIcon}>
-                            <HugeiconsIcon icon={AlertCircleFreeIcons} size={28} color={palette.orange} />
-                        </View>
-                        <Text style={sheetS.updateTitle}>
-                            The latest version is currently{'\n'}available
-                        </Text>
-                    </View>
-                    <View style={sheetS.footer}>
-                        <TouchableOpacity
-                            style={[sheetS.btn, sheetS.btnActive]}
-                            onPress={onClose}
-                            activeOpacity={0.85}
-                            testID="update-okay"
-                        >
-                            <Text style={[sheetS.btnText, sheetS.btnTextActive]}>Okay</Text>
-                        </TouchableOpacity>
-                    </View>
+        <BottomSheet visible={visible} onClose={onClose} footer={footer}>
+            <View style={sheetS.updateContent}>
+                <View style={sheetS.alertIcon}>
+                    <HugeiconsIcon icon={AlertCircleFreeIcons} size={28} color={palette.orange} />
                 </View>
+                <Text style={sheetS.updateTitle}>
+                    The latest version is currently{'\n'}available
+                </Text>
             </View>
-        </Modal>
+        </BottomSheet>
     );
 }
 
@@ -314,17 +278,6 @@ const s = StyleSheet.create({
 
 // ─── Sheet Styles ─────────────────────────────────────────────────────────────
 const sheetS = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
-    sheet: {
-        backgroundColor: colors.background,
-        borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        paddingTop: spacing.base,
-    },
-    handle: {
-        width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border,
-        alignSelf: 'center', marginBottom: spacing.lg,
-    },
-
     // Rate content
     rateContent: { alignItems: 'center', paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl },
     rateIcon: { width: 56, height: 56, borderRadius: 14, marginBottom: spacing.base },
@@ -339,8 +292,6 @@ const sheetS = StyleSheet.create({
     },
     updateTitle: { ...typography.h3, color: colors.textPrimary, fontWeight: '700', lineHeight: 30 },
 
-    // Shared footer
-    footer: { paddingHorizontal: spacing.base, paddingBottom: spacing.base, gap: spacing.sm },
     btn: {
         borderRadius: borderRadius.full, paddingVertical: spacing.base,
         alignItems: 'center', justifyContent: 'center',
@@ -367,12 +318,8 @@ const starS = StyleSheet.create({
 
 // ─── Thank You Styles ─────────────────────────────────────────────────────────
 const thankS = StyleSheet.create({
-    container: {
-        flex: 1, backgroundColor: colors.background,
-        paddingHorizontal: spacing.base,
-    },
     centerContent: {
-        flex: 1, alignItems: 'center', justifyContent: 'center',
+        alignItems: 'center', paddingVertical: spacing.xxl,
     },
     circle: {
         width: 220, height: 220, borderRadius: 110,

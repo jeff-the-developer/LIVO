@@ -76,6 +76,26 @@ export type AppStackParamList = {
         documentType: 'id_front' | 'id_back' | 'passport' | 'business_license' | 'address_proof';
         onComplete: (imageUri: string) => void;
     };
+    LivoBusiness: undefined;
+    SwitchAccount: undefined;
+    // Auth screens reused inside app flow (Add New Account)
+    Login: undefined;
+    Register: undefined;
+    ForgotPassword: undefined;
+    ResetPassword: { token: string };
+    SetPassword: {
+        mode: 'register' | 'reset-password';
+        identifier: string;
+        userId?: string;
+        resetToken?: string;
+    };
+    AccountType: undefined;
+    PINSetup: undefined;
+    BiometricSetup: undefined;
+    // Notification sub-screens
+    NotifTransactions: undefined;
+    NotifAccountActivities: undefined;
+    NotifMiscellaneous: undefined;
     // Shared screens reused from auth flow
     VerifyOTP: {
         mode: OTPMode;

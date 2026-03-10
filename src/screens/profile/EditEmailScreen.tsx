@@ -15,14 +15,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
-import { ArrowLeft01FreeIcons } from '@hugeicons/core-free-icons';
-import { colors } from '@theme/colors';
+import { ArrowLeft01FreeIcons, UserGroupFreeIcons } from '@hugeicons/core-free-icons';
+import { colors, palette } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import { useAuthStore } from '@stores/authStore';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { useUpdateEmail, handleApiError } from '@hooks/api/useProfile';
+import BottomSheet from '@components/common/BottomSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -46,55 +47,35 @@ function SecurityTipModal({
     onCancel: () => void;
     loading: boolean;
 }): React.ReactElement {
-    return visible ? (
-        <View style={modalStyles.overlay}>
+    const footer = (
+        <View style={{ gap: spacing.sm }}>
             <TouchableOpacity
-                style={modalStyles.backdrop}
-                activeOpacity={1}
-                onPress={onCancel}
-            />
-            <View style={modalStyles.sheet}>
-                <View style={modalStyles.handleBar} />
-
-                <View style={modalStyles.iconWrap}>
-                    <Text style={{ fontSize: 20 }}>🔒</Text>
-                </View>
-
-                <Text style={modalStyles.title}>Security Tip</Text>
-                <Text style={modalStyles.body}>
-                    You won't be able to make transfers within 12 hours after
-                    changing your email.
-                </Text>
-
-                <TouchableOpacity
-                    style={[modalStyles.okayBtn, loading && modalStyles.btnDisabled]}
-                    onPress={onOkay}
-                    activeOpacity={0.85}
-                    disabled={loading}
-                    accessibilityLabel="Okay"
-                    accessibilityRole="button"
-                    testID="security-tip-okay"
-                >
-                    {loading ? (
-                        <ActivityIndicator color={colors.buttonText} />
-                    ) : (
-                        <Text style={modalStyles.okayText}>Okay</Text>
-                    )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={modalStyles.cancelBtn}
-                    onPress={onCancel}
-                    activeOpacity={0.85}
-                    accessibilityLabel="Cancel"
-                    accessibilityRole="button"
-                    testID="security-tip-cancel"
-                >
-                    <Text style={modalStyles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
-            </View>
+                style={[modalStyles.okayBtn, loading && modalStyles.btnDisabled]}
+                onPress={onOkay} activeOpacity={0.85} disabled={loading}
+                accessibilityLabel="Okay" accessibilityRole="button" testID="security-tip-okay"
+            >
+                {loading ? <ActivityIndicator color={colors.buttonText} /> : <Text style={modalStyles.okayText}>Okay</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={modalStyles.cancelBtn} onPress={onCancel} activeOpacity={0.85}
+                accessibilityLabel="Cancel" accessibilityRole="button" testID="security-tip-cancel"
+            >
+                <Text style={modalStyles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
         </View>
-    ) : <></>;
+    );
+
+    return (
+        <BottomSheet visible={visible} onClose={onCancel} footer={footer}>
+            <View style={modalStyles.iconWrap}>
+                <HugeiconsIcon icon={UserGroupFreeIcons} size={26} color={colors.textPrimary} />
+            </View>
+            <Text style={modalStyles.title}>Security Tip</Text>
+            <Text style={modalStyles.body}>
+                You wont be able to make transfers within the next 12 hours after changing your email.
+            </Text>
+        </BottomSheet>
+    );
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -298,36 +279,11 @@ const styles = StyleSheet.create({
 
 // ─── Modal Styles ─────────────────────────────────────────────────────────────
 const modalStyles = StyleSheet.create({
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
-        justifyContent: 'flex-end',
-        zIndex: 10,
-    },
-    backdrop: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: colors.overlay,
-    },
-    sheet: {
-        backgroundColor: colors.background,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        paddingHorizontal: spacing.base,
-        paddingBottom: spacing.xl,
-        paddingTop: spacing.md,
-        alignItems: 'center',
-    },
-    handleBar: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.border,
-        marginBottom: spacing.lg,
-    },
     iconWrap: {
         width: 52,
         height: 52,
         borderRadius: 26,
-        backgroundColor: colors.surfaceAlt,
+        backgroundColor: palette.green50,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.base,

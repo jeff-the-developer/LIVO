@@ -8,7 +8,6 @@ import {
     Switch,
     ActivityIndicator,
     Alert,
-    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -31,6 +30,10 @@ import {
     useUpdateAppearanceSettings,
     handleApiError,
 } from '@hooks/api/useSettings';
+import { useAppStore } from '@stores/appStore';
+import type { AppLanguage, ChangeBasis } from '@stores/appStore';
+import type { SupportedCurrency } from '@utils/currency';
+import BottomSheet from '@components/common/BottomSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -108,35 +111,19 @@ function SuccessModal({
     visible: boolean;
     onClose: () => void;
 }): React.ReactElement {
+    const footer = (
+        <TouchableOpacity style={modalStyles.closeBtn} onPress={onClose} activeOpacity={0.85} testID="display-success-close">
+            <Text style={modalStyles.closeBtnText}>Close</Text>
+        </TouchableOpacity>
+    );
+
     return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
-        >
-            <View style={modalStyles.overlay}>
-                <View style={modalStyles.sheet}>
-                    <View style={modalStyles.handle} />
-                    <View style={modalStyles.iconWrap}>
-                        <HugeiconsIcon
-                            icon={CheckmarkCircle02FreeIcons}
-                            size={32}
-                            color={colors.textPrimary}
-                        />
-                    </View>
-                    <Text style={modalStyles.title}>Settings Successfully Set</Text>
-                    <TouchableOpacity
-                        style={modalStyles.closeBtn}
-                        onPress={onClose}
-                        activeOpacity={0.85}
-                        testID="display-success-close"
-                    >
-                        <Text style={modalStyles.closeBtnText}>Close</Text>
-                    </TouchableOpacity>
-                </View>
+        <BottomSheet visible={visible} onClose={onClose} footer={footer}>
+            <View style={modalStyles.iconWrap}>
+                <HugeiconsIcon icon={CheckmarkCircle02FreeIcons} size={32} color={colors.textPrimary} />
             </View>
-        </Modal>
+            <Text style={modalStyles.title}>Settings Successfully Set</Text>
+        </BottomSheet>
     );
 }
 
@@ -500,6 +487,12 @@ export default function AppearanceDisplayScreen(): React.ReactElement {
     const { data: settings, isLoading } = useAppearanceSettings();
     const updateMutation = useUpdateAppearanceSettings();
 
+    // Global store setters — applied immediately so all screens reflect the change
+    const setLanguage = useAppStore((s) => s.setLanguage);
+    const setCurrency = useAppStore((s) => s.setCurrency);
+    const setTheme = useAppStore((s) => s.setTheme);
+    const setChangeBasis = useAppStore((s) => s.setChangeBasis);
+
     const [subView, setSubView] = useState<SubView>('main');
 
     const onUpdate = (update: Parameters<typeof updateMutation.mutate>[0]) => {
@@ -569,7 +562,10 @@ export default function AppearanceDisplayScreen(): React.ReactElement {
             {subView === 'language' && (
                 <LanguageView
                     selected={settings?.language ?? 'English'}
-                    onSelect={(lang) => onUpdate({ language: lang })}
+                    onSelect={(lang) => {
+                        onUpdate({ language: lang });
+                        setLanguage(lang as AppLanguage);
+                    }}
                     onBack={() => setSubView('main')}
                 />
             )}
@@ -577,7 +573,10 @@ export default function AppearanceDisplayScreen(): React.ReactElement {
             {subView === 'currency' && (
                 <CurrencyView
                     selected={settings?.currency_display ?? 'USD'}
-                    onSelect={(code) => onUpdate({ currency_display: code as any })}
+                    onSelect={(code) => {
+                        onUpdate({ currency_display: code as any });
+                        setCurrency(code as SupportedCurrency);
+                    }}
                     onBack={() => setSubView('main')}
                 />
             )}
@@ -585,7 +584,10 @@ export default function AppearanceDisplayScreen(): React.ReactElement {
             {subView === 'theme' && (
                 <ThemeView
                     currentTheme={settings?.theme ?? 'system'}
-                    onUpdate={(theme) => onUpdate({ theme: theme as any })}
+                    onUpdate={(theme) => {
+                        onUpdate({ theme: theme as any });
+                        setTheme(theme as 'light' | 'system');
+                    }}
                     onBack={() => setSubView('main')}
                 />
             )}
@@ -593,7 +595,10 @@ export default function AppearanceDisplayScreen(): React.ReactElement {
             {subView === 'change_basis' && (
                 <ChangeBasisView
                     currentBasis={(settings as any)?.change_basis ?? '24h'}
-                    onUpdate={(basis) => onUpdate({ change_basis: basis } as any)}
+                    onUpdate={(basis) => {
+                        onUpdate({ change_basis: basis } as any);
+                        setChangeBasis(basis as ChangeBasis);
+                    }}
                     onBack={() => setSubView('main')}
                 />
             )}
@@ -760,27 +765,6 @@ const listStyles = StyleSheet.create({
 
 // ─── Modal Styles ─────────────────────────────────────────────────────────────
 const modalStyles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: colors.overlay,
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        backgroundColor: colors.background,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        paddingHorizontal: spacing.base,
-        paddingBottom: spacing.xxl,
-        paddingTop: spacing.base,
-        alignItems: 'center',
-    },
-    handle: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.border,
-        marginBottom: spacing.lg,
-    },
     iconWrap: {
         width: 56,
         height: 56,

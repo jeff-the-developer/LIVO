@@ -5,7 +5,6 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
-    Modal,
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +23,7 @@ import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { useKYCOverview } from '@hooks/api/useKYC';
 import type { KYCLevelInfo } from '@api/kyc';
+import BottomSheet from '@components/common/BottomSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -58,73 +58,46 @@ function ImportantNotesSheet({
 
     const allChecked = checked.every(Boolean);
 
-    return (
-        <Modal
-            animationType="slide"
-            transparent
-            visible={visible}
-            onRequestClose={onCancel}
+    const footer = (
+        <TouchableOpacity
+            style={[noteStyles.submitBtn, !allChecked && noteStyles.submitDisabled]}
+            onPress={onSubmit}
+            activeOpacity={0.85}
+            disabled={!allChecked}
+            accessibilityLabel="Proceed to verification"
+            accessibilityRole="button"
+            testID="notes-submit"
         >
-            <View style={noteStyles.overlay}>
-                <View style={noteStyles.sheet}>
-                    <View style={noteStyles.handleBar} />
+            <Text style={noteStyles.submitText}>I Understand</Text>
+        </TouchableOpacity>
+    );
 
-                    <View style={noteStyles.iconWrap}>
-                        <HugeiconsIcon
-                            icon={Alert02FreeIcons}
-                            size={24}
-                            color={palette.orange}
-                        />
-                    </View>
-
-                    <Text style={noteStyles.title}>Important Notes</Text>
-
-                    {IMPORTANT_NOTES.map((note, idx) => (
-                        <TouchableOpacity
-                            key={idx}
-                            style={noteStyles.noteRow}
-                            onPress={() => toggleCheck(idx)}
-                            activeOpacity={0.7}
-                            accessibilityLabel={note}
-                            accessibilityRole="checkbox"
-                            accessibilityState={{ checked: checked[idx] }}
-                            testID={`note-check-${idx}`}
-                        >
-                            <Text style={noteStyles.noteText}>{note}</Text>
-                            <View
-                                style={[
-                                    noteStyles.checkbox,
-                                    checked[idx] && noteStyles.checkboxChecked,
-                                ]}
-                            >
-                                {checked[idx] && (
-                                    <HugeiconsIcon
-                                        icon={CheckmarkCircle02FreeIcons}
-                                        size={20}
-                                        color={colors.textPrimary}
-                                    />
-                                )}
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-
-                    <TouchableOpacity
-                        style={[
-                            noteStyles.submitBtn,
-                            !allChecked && noteStyles.submitDisabled,
-                        ]}
-                        onPress={onSubmit}
-                        activeOpacity={0.85}
-                        disabled={!allChecked}
-                        accessibilityLabel="Proceed to verification"
-                        accessibilityRole="button"
-                        testID="notes-submit"
-                    >
-                        <Text style={noteStyles.submitText}>I Understand</Text>
-                    </TouchableOpacity>
-                </View>
+    return (
+        <BottomSheet visible={visible} onClose={onCancel} footer={footer}>
+            <View style={noteStyles.iconWrap}>
+                <HugeiconsIcon icon={Alert02FreeIcons} size={24} color={palette.orange} />
             </View>
-        </Modal>
+            <Text style={noteStyles.title}>Important Notes</Text>
+            {IMPORTANT_NOTES.map((note, idx) => (
+                <TouchableOpacity
+                    key={idx}
+                    style={noteStyles.noteRow}
+                    onPress={() => toggleCheck(idx)}
+                    activeOpacity={0.7}
+                    accessibilityLabel={note}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: checked[idx] }}
+                    testID={`note-check-${idx}`}
+                >
+                    <Text style={noteStyles.noteText}>{note}</Text>
+                    <View style={[noteStyles.checkbox, checked[idx] && noteStyles.checkboxChecked]}>
+                        {checked[idx] && (
+                            <HugeiconsIcon icon={CheckmarkCircle02FreeIcons} size={20} color={colors.textPrimary} />
+                        )}
+                    </View>
+                </TouchableOpacity>
+            ))}
+        </BottomSheet>
     );
 }
 
@@ -384,27 +357,6 @@ const kycStyles = StyleSheet.create({
 
 // ─── Notes Sheet Styles ───────────────────────────────────────────────────────
 const noteStyles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: colors.overlay,
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        backgroundColor: colors.background,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        paddingHorizontal: spacing.base,
-        paddingBottom: spacing.xl,
-        paddingTop: spacing.md,
-    },
-    handleBar: {
-        width: 40,
-        height: 4,
-        borderRadius: 2,
-        backgroundColor: colors.border,
-        alignSelf: 'center',
-        marginBottom: spacing.lg,
-    },
     iconWrap: {
         width: 48,
         height: 48,

@@ -15,11 +15,11 @@ import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
-import type { AuthStackParamList } from '@app-types/navigation.types';
+import type { RootNavigatorParamList } from "@app-types/navigation.types";
 import { useVerifyOTP, useResendOTP, handleApiError } from '@hooks/api/useAuth';
 
-type Nav = NativeStackNavigationProp<AuthStackParamList>;
-type RouteProps = NativeStackScreenProps<AuthStackParamList, 'VerifyOTP'>['route'];
+type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
+type RouteProps = NativeStackScreenProps<RootNavigatorParamList, 'VerifyOTP'>['route'];
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 60; // seconds

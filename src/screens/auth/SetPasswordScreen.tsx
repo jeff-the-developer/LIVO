@@ -23,11 +23,11 @@ import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
-import type { AuthStackParamList } from '@app-types/navigation.types';
+import type { RootNavigatorParamList } from "@app-types/navigation.types";
 import { useSetPassword, handleApiError } from '@hooks/api/useAuth';
 
-type Nav = NativeStackNavigationProp<AuthStackParamList>;
-type RouteProps = NativeStackScreenProps<AuthStackParamList, 'SetPassword'>['route'];
+type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
+type RouteProps = NativeStackScreenProps<RootNavigatorParamList, 'SetPassword'>['route'];
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 const schema = z

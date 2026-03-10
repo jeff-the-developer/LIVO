@@ -7,7 +7,6 @@ import {
     StyleSheet,
     ScrollView,
     ActivityIndicator,
-    Modal,
     Alert,
     Share,
     Linking,
@@ -36,6 +35,7 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { useReferralInfo } from '@hooks/api/useSettings';
+import BottomSheet from '@components/common/BottomSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -86,20 +86,18 @@ const FRIEND_BENEFITS: BenefitCard[] = [
 function AffiliateSheet({ visible, onClose }: {
     visible: boolean; onClose: () => void;
 }): React.ReactElement {
+    const footer = (
+        <TouchableOpacity style={sheetS.footerBtn} onPress={onClose}
+            activeOpacity={0.85} testID="affiliate-okay">
+            <Text style={sheetS.footerBtnText}>Okay</Text>
+        </TouchableOpacity>
+    );
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View style={sheetS.overlay}>
-                <View style={sheetS.sheet}>
-                    <View style={sheetS.handle} />
-                    <TouchableOpacity style={sheetS.backBtn} onPress={onClose}
-                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                        <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={22} color={colors.textPrimary} />
-                    </TouchableOpacity>
-                    <ScrollView style={{ flex: 1, paddingHorizontal: spacing.base }}
-                        showsVerticalScrollIndicator={false}>
-                        <Text style={sheetS.title}>Affiliate Program</Text>
-                        <Text style={sheetS.body}>
-                            {`The Affiliate Program is a higher partnership initiative specifically designed for financial media, KOLs, professional marketing communities, and organizations, with flexible, outcome-based profit-sharing and exclusive benefits, we aim to help our affiliates amplify their branded impact in the digital wallet and Livo Fintech landscape returns. Below see the core highlights for our Affiliate Program.
+        <BottomSheet visible={visible} onClose={onClose} showBackButton={true} maxHeight="90%" footer={footer}>
+            <Text style={sheetS.title}>Affiliate Program</Text>
+            <Text style={sheetS.body}>
+                {`The Affiliate Program is a higher partnership initiative specifically designed for financial media, KOLs, professional marketing communities, and organizations, with flexible, outcome-based profit-sharing and exclusive benefits, we aim to help our affiliates amplify their branded impact in the digital wallet and Livo Fintech landscape returns. Below see the core highlights for our Affiliate Program.
 
 1. High-Commissions with Exclusive Benefits
 The Affiliate Program offers significantly higher commission rates compared to regular referrals. Whether it's through user sign-ups or transaction-based revenues, affiliates can maximize the value of their resources and achieve higher returns.
@@ -134,18 +132,8 @@ management
 
 7. Let's Work Together
 The Affiliate program, is a strategic, long-term partnership designed to grow with you. Whether you're a financial media KOL, a professional marketing community, or an organization, we are committed to help you succeed. Contact support to find out more.`}
-                        </Text>
-                        <View style={{ height: spacing.xxl }} />
-                    </ScrollView>
-                    <View style={sheetS.footer}>
-                        <TouchableOpacity style={sheetS.footerBtn} onPress={onClose}
-                            activeOpacity={0.85} testID="affiliate-okay">
-                            <Text style={sheetS.footerBtnText}>Okay</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </View>
-        </Modal>
+            </Text>
+        </BottomSheet>
     );
 }
 
@@ -178,88 +166,81 @@ function InviteModal({ visible, onClose, referralCode, referralLink }: {
         )}`);
     };
 
+    const footer = (
+        <TouchableOpacity style={sheetS.footerBtn} onPress={onClose}
+            activeOpacity={0.85} testID="invite-modal-okay">
+            <Text style={sheetS.footerBtnText}>Okay</Text>
+        </TouchableOpacity>
+    );
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-            <View style={modalS.overlay}>
-                <View style={modalS.container}>
-                    {/* QR Banner */}
-                    <View style={modalS.qrBanner}>
-                        <View style={modalS.qrPlaceholder}>
-                            <Image source={livoIcon} style={modalS.qrLogo} resizeMode="contain" />
-                        </View>
-                    </View>
-                    {/* Title & subtitle below green banner */}
-                    <Text style={modalS.qrTitle}>
-                        Say Hello To Your All-In-One{'\n'}Global Fiat & Crypto Wallet
-                    </Text>
-                    <Text style={modalS.qrSubtitle}>
-                        Secure and Easy Global Payments. Receive and{'\n'}Exchange Fiat and Crypto Anytime, Anywhere
-                    </Text>
-
-                    {/* Code */}
-                    <View style={modalS.infoRow}>
-                        <Text style={modalS.infoLabel}>Code</Text>
-                        <View style={modalS.infoRight}>
-                            <Text style={modalS.infoValue}>{referralCode}</Text>
-                            <TouchableOpacity onPress={onCopyCode}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                                <HugeiconsIcon icon={Copy01FreeIcons} size={18} color={colors.textMuted} />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Link */}
-                    <View style={[modalS.infoRow, { borderTopWidth: 0 }]}>
-                        <Text style={[modalS.infoLabel, { color: colors.primary }]}>Link</Text>
-                        <View style={modalS.infoRight}>
-                            <Text style={modalS.infoValue} numberOfLines={1}>
-                                {referralLink}
-                            </Text>
-                            <TouchableOpacity onPress={onCopyLink}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                                <HugeiconsIcon icon={Copy01FreeIcons} size={18} color={colors.textMuted} />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Quick Actions */}
-                    <View style={modalS.actions}>
-                        <TouchableOpacity style={modalS.actionItem} activeOpacity={0.7}>
-                            <View style={modalS.actionIconWrap}>
-                                <HugeiconsIcon icon={Bookmark01FreeIcons} size={20} color={colors.textPrimary} />
-                            </View>
-                            <Text style={modalS.actionLabel}>Save</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={modalS.actionItem} onPress={onCopyLink} activeOpacity={0.7}>
-                            <View style={modalS.actionIconWrap}>
-                                <HugeiconsIcon icon={Link01FreeIcons} size={20} color={colors.textPrimary} />
-                            </View>
-                            <Text style={modalS.actionLabel}>Link</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={modalS.actionItem} onPress={onMail} activeOpacity={0.7}>
-                            <View style={modalS.actionIconWrap}>
-                                <HugeiconsIcon icon={Mail01FreeIcons} size={20} color={colors.textPrimary} />
-                            </View>
-                            <Text style={modalS.actionLabel}>Mail</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={modalS.actionItem} onPress={onSharePress} activeOpacity={0.7}>
-                            <View style={modalS.actionIconWrap}>
-                                <HugeiconsIcon icon={Share04FreeIcons} size={20} color={colors.textPrimary} />
-                            </View>
-                            <Text style={modalS.actionLabel}>Share</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Okay */}
-                    <View style={sheetS.footer}>
-                        <TouchableOpacity style={sheetS.footerBtn} onPress={onClose}
-                            activeOpacity={0.85} testID="invite-modal-okay">
-                            <Text style={sheetS.footerBtnText}>Okay</Text>
-                        </TouchableOpacity>
-                    </View>
+        <BottomSheet visible={visible} onClose={onClose} footer={footer}>
+            {/* QR Banner */}
+            <View style={modalS.qrBanner}>
+                <View style={modalS.qrPlaceholder}>
+                    <Image source={livoIcon} style={modalS.qrLogo} resizeMode="contain" />
                 </View>
             </View>
-        </Modal>
+
+            <Text style={modalS.qrTitle}>
+                Say Hello To Your All-In-One{'\n'}Global Fiat & Crypto Wallet
+            </Text>
+            <Text style={modalS.qrSubtitle}>
+                Secure and Easy Global Payments. Receive and{'\n'}Exchange Fiat and Crypto Anytime, Anywhere
+            </Text>
+
+            {/* Code */}
+            <View style={modalS.infoRow}>
+                <Text style={modalS.infoLabel}>Code</Text>
+                <View style={modalS.infoRight}>
+                    <Text style={modalS.infoValue}>{referralCode}</Text>
+                    <TouchableOpacity onPress={onCopyCode}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <HugeiconsIcon icon={Copy01FreeIcons} size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Link */}
+            <View style={[modalS.infoRow, { borderTopWidth: 0 }]}>
+                <Text style={[modalS.infoLabel, { color: colors.primary }]}>Link</Text>
+                <View style={modalS.infoRight}>
+                    <Text style={modalS.infoValue} numberOfLines={1}>{referralLink}</Text>
+                    <TouchableOpacity onPress={onCopyLink}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <HugeiconsIcon icon={Copy01FreeIcons} size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Quick Actions */}
+            <View style={modalS.actions}>
+                <TouchableOpacity style={modalS.actionItem} activeOpacity={0.7}>
+                    <View style={modalS.actionIconWrap}>
+                        <HugeiconsIcon icon={Bookmark01FreeIcons} size={20} color={colors.textPrimary} />
+                    </View>
+                    <Text style={modalS.actionLabel}>Save</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={modalS.actionItem} onPress={onCopyLink} activeOpacity={0.7}>
+                    <View style={modalS.actionIconWrap}>
+                        <HugeiconsIcon icon={Link01FreeIcons} size={20} color={colors.textPrimary} />
+                    </View>
+                    <Text style={modalS.actionLabel}>Link</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={modalS.actionItem} onPress={onMail} activeOpacity={0.7}>
+                    <View style={modalS.actionIconWrap}>
+                        <HugeiconsIcon icon={Mail01FreeIcons} size={20} color={colors.textPrimary} />
+                    </View>
+                    <Text style={modalS.actionLabel}>Mail</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={modalS.actionItem} onPress={onSharePress} activeOpacity={0.7}>
+                    <View style={modalS.actionIconWrap}>
+                        <HugeiconsIcon icon={Share04FreeIcons} size={20} color={colors.textPrimary} />
+                    </View>
+                    <Text style={modalS.actionLabel}>Share</Text>
+                </TouchableOpacity>
+            </View>
+        </BottomSheet>
     );
 }
 
@@ -482,39 +463,31 @@ const s = StyleSheet.create({
 
 // ─── Sheet Styles ─────────────────────────────────────────────────────────────
 const sheetS = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
-    sheet: { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: spacing.base, height: '90%' },
-    handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.sm },
-    backBtn: { paddingHorizontal: spacing.base, paddingBottom: spacing.sm, alignSelf: 'flex-start' },
     title: { ...typography.h2, color: colors.textPrimary, fontWeight: '800', marginBottom: spacing.base, marginTop: spacing.sm },
     body: { ...typography.bodySm, color: colors.textSecondary, lineHeight: 22 },
-    footer: { paddingHorizontal: spacing.base, paddingVertical: spacing.base, borderTopWidth: 0.5, borderTopColor: colors.border },
     footerBtn: { backgroundColor: colors.textPrimary, borderRadius: borderRadius.full, paddingVertical: spacing.base, alignItems: 'center', justifyContent: 'center' },
     footerBtnText: { ...typography.bodyMd, color: colors.buttonText, fontWeight: '600' },
 });
 
-// ─── Modal Styles ─────────────────────────────────────────────────────────────
+// ─── Invite Modal Styles ──────────────────────────────────────────────────────
 const modalS = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    container: { backgroundColor: colors.background, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
-
     qrBanner: {
         backgroundColor: colors.primary, borderRadius: borderRadius.card,
-        margin: spacing.base, padding: spacing.xl, alignItems: 'center',
+        marginBottom: spacing.base, padding: spacing.xl, alignItems: 'center',
     },
     qrPlaceholder: {
         width: 160, height: 160, backgroundColor: '#FFFFFF',
         borderRadius: borderRadius.card, alignItems: 'center', justifyContent: 'center',
     },
     qrLogo: { width: 60, height: 60 },
-    qrTitle: { ...typography.h3, color: colors.textPrimary, fontWeight: '800', textAlign: 'left', paddingHorizontal: spacing.base, marginTop: spacing.lg, marginBottom: spacing.sm },
-    qrSubtitle: { ...typography.caption, color: colors.textSecondary, textAlign: 'left', lineHeight: 18, paddingHorizontal: spacing.base, marginBottom: spacing.lg },
+    qrTitle: { ...typography.h3, color: colors.textPrimary, fontWeight: '800', textAlign: 'left', marginTop: spacing.lg, marginBottom: spacing.sm },
+    qrSubtitle: { ...typography.caption, color: colors.textSecondary, textAlign: 'left', lineHeight: 18, marginBottom: spacing.lg },
 
     infoRow: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        marginHorizontal: spacing.base, paddingVertical: spacing.md,
+        paddingVertical: spacing.md, paddingHorizontal: spacing.base,
         borderTopWidth: 1, borderTopColor: colors.border,
-        backgroundColor: colors.cardBackground, paddingHorizontal: spacing.base,
+        backgroundColor: colors.cardBackground,
         borderRadius: borderRadius.card, marginBottom: spacing.xs,
     },
     infoLabel: { ...typography.bodySm, color: colors.textMuted },
@@ -523,7 +496,7 @@ const modalS = StyleSheet.create({
 
     actions: {
         flexDirection: 'row', justifyContent: 'space-around',
-        paddingHorizontal: spacing.xl, paddingVertical: spacing.lg,
+        paddingVertical: spacing.lg,
     },
     actionItem: { alignItems: 'center', gap: spacing.xs },
     actionIconWrap: {

@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '@app-types/navigation.types';
+import type { RootNavigatorParamList } from '@app-types/navigation.types';
 import { useAuthStore } from '@stores/authStore';
 import { handleApiError } from '@utils/errorHandler';
 import {
@@ -21,7 +21,7 @@ import {
     type CreateUsernamePayload,
 } from '@api/auth';
 
-type AuthNav = NativeStackNavigationProp<AuthStackParamList>;
+type AuthNav = NativeStackNavigationProp<RootNavigatorParamList>;
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 export function useRegister() {
