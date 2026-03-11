@@ -13,18 +13,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Clipboard from 'expo-clipboard';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
-  SecurityCheckFreeIcons,
-  Crown02FreeIcons,
-  UserGroupFreeIcons,
-  SquareLock02FreeIcons,
-  Notification03FreeIcons,
-  PaintBrush01FreeIcons,
-  Coupon01FreeIcons,
-  Calendar03FreeIcons,
-  Briefcase05FreeIcons,
-  CustomerSupportFreeIcons,
-  FileValidationFreeIcons,
-  InformationSquareFreeIcons,
   Copy01FreeIcons,
   Cancel01FreeIcons,
 } from '@hugeicons/core-free-icons';
@@ -154,24 +142,29 @@ export default function ProfileScreen(): React.ReactElement {
         {/* ─── Highlight Cards ───────────────────────────────────────────── */}
         <View style={styles.cardGroup}>
           <HighlightCard
-            icon={SecurityCheckFreeIcons}
+            iconImage={require('@assets/images/icons/identityverfication.png')}
             title="Identity Verification"
             subtitle="Complete to unlock more Features"
+            iconBg="transparent"
+            iconSize={40}
             onPress={() => navigation.navigate('Verification')}
             testID="profile-card-kyc"
           />
           <HighlightCard
-            icon={Crown02FreeIcons}
+            iconImage={require('@assets/images/icons/basicmember.png')}
             title={membershipTier}
             subtitle="Discover current benefits"
-            iconColor={colors.primary}
+            iconBg="transparent"
+            iconSize={40}
             onPress={() => navigation.navigate('StatusUpgrade')}
             testID="profile-card-membership"
           />
           <HighlightCard
-            icon={UserGroupFreeIcons}
+            iconImage={require('@assets/images/icons/invitefriends.png')}
             title="Invite Friends"
             subtitle="Refer & Earn"
+            iconBg="transparent"
+            iconSize={40}
             onPress={() => navigation.navigate('InviteFriends')}
             testID="profile-card-invite"
           />
@@ -181,72 +174,67 @@ export default function ProfileScreen(): React.ReactElement {
 
         {/* ─── Settings Group ────────────────────────────────────────────── */}
         <MenuItem
-          icon={SquareLock02FreeIcons}
+          iconImage={require('@assets/images/icons/profile/account_security.png')}
           label="Account Security"
           onPress={() => navigation.navigate('AccountSecurity')}
           testID="profile-menu-security"
         />
-        <LineDivider />
         <MenuItem
-          icon={Notification03FreeIcons}
+          iconImage={require('@assets/images/icons/profile/notifications.png')}
           label="Notifications"
           onPress={() => navigation.navigate('Notifications')}
           testID="profile-menu-notifications"
         />
-        <LineDivider />
         <MenuItem
-          icon={PaintBrush01FreeIcons}
+          iconImage={require('@assets/images/icons/profile/appearance_display.png')}
           label="Appearance & Display"
           onPress={() => navigation.navigate('AppearanceDisplay')}
           testID="profile-menu-appearance"
         />
 
-        <SectionGap />
+        <LineDivider />
 
         {/* ─── Rewards Group ─────────────────────────────────────────────── */}
         <MenuItem
-          icon={Coupon01FreeIcons}
+          iconImage={require('@assets/images/icons/profile/coupons.png')}
           label="My Coupons"
           onPress={() => navigation.navigate('MyCoupons')}
           testID="profile-menu-coupons"
         />
-        <LineDivider />
         <MenuItem
-          icon={Calendar03FreeIcons}
+          iconImage={require('@assets/images/icons/profile/events.png')}
           label="Events"
           onPress={() => navigation.navigate('Events')}
           testID="profile-menu-events"
         />
 
-        <SectionGap />
+        <LineDivider />
 
         {/* ─── Business ──────────────────────────────────────────────────── */}
         <MenuItem
-          icon={Briefcase05FreeIcons}
+          iconImage={require('@assets/images/icons/profile/livo_business.png')}
           label="Livo Business"
           onPress={onLivoBusiness}
           testID="profile-menu-business"
         />
 
-        <SectionGap />
+        <LineDivider />
 
         {/* ─── Support Group ─────────────────────────────────────────────── */}
         <MenuItem
-          icon={CustomerSupportFreeIcons}
+          iconImage={require('@assets/images/icons/profile/client_support.png')}
           label="Client Support"
           onPress={() => navigation.navigate('ClientSupport')}
           testID="profile-menu-support"
         />
-        <LineDivider />
         <MenuItem
-          icon={FileValidationFreeIcons}
+          iconImage={require('@assets/images/icons/profile/terms_of_service.png')}
           label="Terms of Service"
           onPress={() => navigation.navigate('TermsOfService')}
           testID="profile-menu-terms"
         />
-        <LineDivider />
         <MenuItem
-          icon={InformationSquareFreeIcons}
+          iconImage={require('@assets/images/icons/profile/about_livopay.png')}
           label="About LIVOPay"
           onPress={() => navigation.navigate('AboutLIVOPay')}
           testID="profile-menu-about"
@@ -430,14 +418,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   signOutBtn: {
-    backgroundColor: palette.redLight,
+    backgroundColor: '#FF5A5A20',
     borderRadius: borderRadius.full,
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
   signOutText: {
     ...typography.bodyMd,
-    color: palette.red,
+    color: '#FF5A5A',
     fontWeight: '600',
   },
 
@@ -457,7 +445,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   proceedSignOutBtn: {
-    backgroundColor: palette.red,
+    backgroundColor: '#FF5A5A',
     borderRadius: borderRadius.full,
     paddingVertical: spacing.base,
     alignItems: 'center',

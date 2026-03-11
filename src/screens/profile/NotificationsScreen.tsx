@@ -6,6 +6,7 @@ import {
     StyleSheet,
     ScrollView,
     Linking,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -14,7 +15,6 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
     ArrowLeft01FreeIcons,
     ArrowRight01FreeIcons,
-    Notification03FreeIcons,
     Mail01FreeIcons,
     Exchange01FreeIcons,
     Activity01FreeIcons,
@@ -27,6 +27,9 @@ import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const notificationIcon = require('@assets/images/branding/notification_bell_icon.png');
 
 // ─── Nav Row ──────────────────────────────────────────────────────────────────
 function NavRow({
@@ -94,11 +97,7 @@ export default function NotificationsScreen(): React.ReactElement {
                 <View style={s.systemCard}>
                     <View style={s.systemCardLeft}>
                         <View style={s.bellWrap}>
-                            <HugeiconsIcon
-                                icon={Notification03FreeIcons}
-                                size={22}
-                                color={colors.primary}
-                            />
+                            <Image source={notificationIcon} style={s.bellImage} resizeMode="contain" />
                         </View>
                         <View style={s.systemCardText}>
                             <Text style={s.systemCardTitle}>App Notifications</Text>
@@ -192,12 +191,14 @@ const s = StyleSheet.create({
         gap: spacing.sm,
     },
     bellWrap: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.primaryLight,
+        width: 55,
+        height: 55,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    bellImage: {
+        width: 55,
+        height: 55,
     },
     systemCardText: { flex: 1 },
     systemCardTitle: {

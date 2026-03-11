@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
@@ -8,7 +9,9 @@ import { typography } from '@theme/typography';
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HighlightCardProps {
     /** HugeIcons icon data from @hugeicons/core-free-icons */
-    icon: Parameters<typeof HugeiconsIcon>[0]['icon'];
+    icon?: Parameters<typeof HugeiconsIcon>[0]['icon'];
+    /** PNG image source (takes priority over icon when provided) */
+    iconImage?: ImageSourcePropType;
     /** Card title */
     title: string;
     /** Card subtitle */
@@ -17,6 +20,8 @@ interface HighlightCardProps {
     iconColor?: string;
     /** Icon background color override */
     iconBg?: string;
+    /** Custom image size override */
+    iconSize?: number;
     /** Press handler */
     onPress?: () => void;
     /** Test ID for automated testing */
@@ -25,10 +30,12 @@ interface HighlightCardProps {
 
 export default function HighlightCard({
     icon,
+    iconImage,
     title,
     subtitle,
     iconColor = colors.primary,
     iconBg = colors.surfaceAlt,
+    iconSize = 22,
     onPress,
     testID,
 }: HighlightCardProps): React.ReactElement {
@@ -42,7 +49,15 @@ export default function HighlightCard({
             testID={testID}
         >
             <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
-                <HugeiconsIcon icon={icon} size={20} color={iconColor} />
+                {iconImage ? (
+                    <Image
+                        source={iconImage}
+                        style={[styles.iconImage, { width: iconSize, height: iconSize }]}
+                        resizeMode="contain"
+                    />
+                ) : icon ? (
+                    <HugeiconsIcon icon={icon} size={20} color={iconColor} />
+                ) : null}
             </View>
             <View style={styles.content}>
                 <Text style={styles.title} numberOfLines={1}>
@@ -72,6 +87,10 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    iconImage: {
+        width: 22,
+        height: 22,
     },
     content: {
         flex: 1,

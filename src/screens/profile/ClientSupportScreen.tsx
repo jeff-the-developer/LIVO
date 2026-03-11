@@ -14,9 +14,8 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
     ArrowLeft01FreeIcons,
     ArrowRight01FreeIcons,
-    Mail01FreeIcons,
 } from '@hugeicons/core-free-icons';
-import { colors, palette } from '@theme/colors';
+import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
@@ -25,7 +24,9 @@ import type { AppStackParamList } from '@app-types/navigation.types';
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const livoIcon = require('@assets/images/branding/logo_pill_light_mint.png');
+const livoIcon = require('@assets/images/branding/livopay_chat_icon.png');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const emailIcon = require('@assets/images/branding/email_support_icon.png');
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ClientSupportScreen(): React.ReactElement {
@@ -60,8 +61,8 @@ export default function ClientSupportScreen(): React.ReactElement {
             <View style={s.content}>
                 {/* LIVOPay Chat */}
                 <TouchableOpacity style={s.card} onPress={onChat} activeOpacity={0.7} testID="support-chat">
-                    <View style={[s.iconWrap, { backgroundColor: palette.green50 }]}>
-                        <Image source={livoIcon} style={s.livoIcon} resizeMode="contain" />
+                    <View style={s.iconWrap}>
+                        <Image source={livoIcon} style={s.chatIcon} resizeMode="cover" />
                     </View>
                     <View style={s.cardText}>
                         <Text style={s.cardTitle}>LIVOPay Chat</Text>
@@ -72,8 +73,8 @@ export default function ClientSupportScreen(): React.ReactElement {
 
                 {/* Email */}
                 <TouchableOpacity style={s.card} onPress={onEmail} activeOpacity={0.7} testID="support-email">
-                    <View style={[s.iconWrap, { backgroundColor: palette.green50 }]}>
-                        <HugeiconsIcon icon={Mail01FreeIcons} size={22} color={colors.textPrimary} />
+                    <View style={s.iconWrap}>
+                        <Image source={emailIcon} style={s.chatIcon} resizeMode="cover" />
                     </View>
                     <View style={s.cardText}>
                         <Text style={s.cardTitle}>Email</Text>
@@ -110,10 +111,10 @@ const s = StyleSheet.create({
         padding: spacing.base, gap: spacing.sm,
     },
     iconWrap: {
-        width: 48, height: 48, borderRadius: 24,
+        width: 55, height: 55, borderRadius: 27.5,
         alignItems: 'center', justifyContent: 'center',
     },
-    livoIcon: { width: 28, height: 28 },
+    chatIcon: { width: 55, height: 55, borderRadius: 27.5 },
     cardText: { flex: 1 },
     cardTitle: { ...typography.bodyMd, color: colors.textPrimary, fontWeight: '600', marginBottom: 2 },
     cardSub: { ...typography.bodySm, color: colors.textSecondary },

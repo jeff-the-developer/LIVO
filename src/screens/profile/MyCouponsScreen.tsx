@@ -6,6 +6,7 @@ import {
     StyleSheet,
     ScrollView,
     ActivityIndicator,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -13,17 +14,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
     ArrowLeft01FreeIcons,
-    Coupon01FreeIcons,
-    GiftFreeIcons,
-    CheckmarkCircle02FreeIcons,
-    Time01FreeIcons,
+    InformationCircleFreeIcons,
+    Calendar01FreeIcons,
 } from '@hugeicons/core-free-icons';
 import { colors, palette } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
-import { useCoupons, handleApiError } from '@hooks/api/useCoupons';
+import { useCoupons } from '@hooks/api/useCoupons';
 import type { Coupon, CouponStatus } from '@api/coupons';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
@@ -36,92 +35,40 @@ const TABS: { key: CouponStatus | 'all'; label: string }[] = [
     { key: 'expired', label: 'Expired' },
 ];
 
-// ─── Status Config ────────────────────────────────────────────────────────────
-function getStatusConfig(status: CouponStatus) {
-    switch (status) {
-        case 'active':
-            return {
-                icon: Coupon01FreeIcons,
-                color: colors.primary,
-                bgColor: palette.green50,
-                label: 'Active',
-            };
-        case 'used':
-            return {
-                icon: CheckmarkCircle02FreeIcons,
-                color: colors.textMuted,
-                bgColor: palette.gray100,
-                label: 'Used',
-            };
-        case 'expired':
-            return {
-                icon: Time01FreeIcons,
-                color: palette.red,
-                bgColor: palette.redLight,
-                label: 'Expired',
-            };
-    }
-}
-
 // ─── Coupon Card ──────────────────────────────────────────────────────────────
 function CouponCard({ coupon }: { coupon: Coupon }): React.ReactElement {
-    const config = getStatusConfig(coupon.status);
     const expiryDate = new Date(coupon.expires_at).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
         year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
     });
 
     return (
         <View style={cardStyles.card}>
-            <View style={cardStyles.top}>
-                <View style={[cardStyles.iconWrap, { backgroundColor: config.bgColor }]}>
-                    <HugeiconsIcon icon={config.icon} size={20} color={config.color} />
+            <View style={cardStyles.content}>
+                <Text style={cardStyles.title} numberOfLines={1}>Card redemption coupon</Text>
+                <Text style={cardStyles.subtitle} numberOfLines={1}>{coupon.title}</Text>
+
+                <View style={cardStyles.metaRow}>
+                    <View style={cardStyles.iconCircle}>
+                        <HugeiconsIcon icon={Calendar01FreeIcons} size={12} color={colors.textPrimary} />
+                    </View>
+                    <Text style={cardStyles.metaText}>Valid until {expiryDate}</Text>
                 </View>
-                <View style={cardStyles.content}>
-                    <Text style={cardStyles.title} numberOfLines={1}>
-                        {coupon.title}
-                    </Text>
-                    <Text style={cardStyles.description} numberOfLines={2}>
-                        {coupon.description}
-                    </Text>
+
+                <View style={cardStyles.metaRow}>
+                    <View style={cardStyles.iconCircle}>
+                        <HugeiconsIcon icon={InformationCircleFreeIcons} size={12} color={colors.textPrimary} />
+                    </View>
+                    <Text style={cardStyles.metaText}>Not transferable</Text>
                 </View>
             </View>
-            <View style={cardStyles.bottom}>
-                <View style={cardStyles.meta}>
-                    <Text style={cardStyles.code}>{coupon.code}</Text>
-                    <Text style={cardStyles.dot}>·</Text>
-                    <Text style={cardStyles.expiry}>
-                        {coupon.status === 'used'
-                            ? `Used ${new Date(coupon.used_at!).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
-                            : `Expires ${expiryDate}`}
-                    </Text>
-                </View>
-                <View style={[cardStyles.badge, { backgroundColor: config.bgColor }]}>
-                    <Text style={[cardStyles.badgeText, { color: config.color }]}>
-                        {config.label}
-                    </Text>
-                </View>
-            </View>
-        </View>
-    );
-}
-
-// ─── Coupon Ticket Graphic ────────────────────────────────────────────────────
-function CouponGraphic(): React.ReactElement {
-    return (
-        <View style={gfx.outer}>
-            {/* Ticket shape */}
-            <View style={gfx.ticket}>
-                {/* Left notch */}
-                <View style={[gfx.notch, gfx.notchLeft]} />
-                {/* Right notch */}
-                <View style={[gfx.notch, gfx.notchRight]} />
-
-                {/* Gift icon in a light circle */}
-                <View style={gfx.iconCircle}>
-                    <HugeiconsIcon icon={GiftFreeIcons} size={40} color="#FFFFFF" />
-                </View>
+            <View style={cardStyles.imageWrap}>
+                <Image
+                    source={require('@assets/images/coupons/Frame 120.png')}
+                    style={cardStyles.couponImage}
+                    resizeMode="contain"
+                />
             </View>
         </View>
     );
@@ -179,7 +126,11 @@ export default function MyCouponsScreen(): React.ReactElement {
             ) : filtered.length === 0 ? (
                 <View style={styles.emptyWrap}>
                     <View style={styles.emptyCard}>
-                        <CouponGraphic />
+                        <Image
+                            source={require('@assets/images/coupons/Frame 120.png')}
+                            style={styles.emptyImage}
+                            resizeMode="contain"
+                        />
                         <Text style={styles.emptyTitle}>No Coupons</Text>
                         <Text style={styles.emptySubtitle}>
                             Browse available coupons and apply{'\n'}them to save instantly
@@ -242,6 +193,11 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderColor: colors.border, borderRadius: borderRadius.card * 1.5,
         alignItems: 'center', paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg,
     },
+    emptyImage: {
+        width: 180,
+        height: 180,
+        marginBottom: spacing.md,
+    },
     emptyTitle: {
         ...typography.h3, color: colors.textPrimary, fontWeight: '800',
         marginTop: spacing.xl, marginBottom: spacing.sm,
@@ -253,50 +209,68 @@ const styles = StyleSheet.create({
     learnMore: { ...typography.bodyMd, color: colors.textPrimary, fontWeight: '700' },
 });
 
-// ─── Coupon Graphic Styles ────────────────────────────────────────────────────
-const gfx = StyleSheet.create({
-    outer: { alignItems: 'center' },
-    ticket: {
-        width: 200, height: 160, borderRadius: 24,
-        backgroundColor: colors.primary,
-        alignItems: 'center', justifyContent: 'center',
-        overflow: 'visible',
-    },
-    notch: {
-        position: 'absolute', width: 28, height: 28, borderRadius: 14,
-        backgroundColor: colors.background, top: '50%', marginTop: -14,
-    },
-    notchLeft: { left: -14 },
-    notchRight: { right: -14 },
-    iconCircle: {
-        width: 72, height: 72, borderRadius: 36,
-        backgroundColor: 'rgba(255,255,255,0.25)',
-        alignItems: 'center', justifyContent: 'center',
-    },
-});
-
 // ─── Card Styles ──────────────────────────────────────────────────────────────
 const cardStyles = StyleSheet.create({
     card: {
-        backgroundColor: colors.background, borderRadius: borderRadius.card,
-        borderWidth: 1, borderColor: colors.border, padding: spacing.base,
+        backgroundColor: colors.background,
+        borderRadius: borderRadius.card,
+        borderWidth: 1,
+        borderColor: colors.border,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: spacing.md,
+        minHeight: 125,
+        // Match Figma card shadow/elevation pattern
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
     },
-    top: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-    iconWrap: {
-        width: 40, height: 40, borderRadius: borderRadius.md,
-        alignItems: 'center', justifyContent: 'center',
+    content: {
+        flex: 1,
+        padding: spacing.base,
+        justifyContent: 'center',
     },
-    content: { flex: 1 },
-    title: { ...typography.bodyMd, color: colors.textPrimary, fontWeight: '600', marginBottom: 2 },
-    description: { ...typography.bodySm, color: colors.textSecondary, lineHeight: 18 },
-    bottom: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        borderTopWidth: 0.5, borderTopColor: colors.border, paddingTop: spacing.sm,
+    title: {
+        ...typography.h4,
+        color: colors.textPrimary,
+        fontWeight: '700',
+        marginBottom: 4,
     },
-    meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-    code: { ...typography.caption, color: colors.textMuted, fontWeight: '600', letterSpacing: 0.5 },
-    dot: { ...typography.caption, color: colors.textMuted },
-    expiry: { ...typography.caption, color: colors.textMuted },
-    badge: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: borderRadius.full },
-    badgeText: { ...typography.caption, fontWeight: '600' },
+    subtitle: {
+        ...typography.bodyMd,
+        color: colors.textPrimary,
+        marginBottom: spacing.lg,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        marginBottom: spacing.sm,
+    },
+    iconCircle: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: palette.green50,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    metaText: {
+        ...typography.bodyMd,
+        color: colors.textSecondary,
+    },
+    imageWrap: {
+        width: 125,
+        height: 125,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 0, // Align exactly at the top of the padding/container bounds
+        marginRight: 16, // Adjusted slightly right for perfect balance
+    },
+    couponImage: {
+        width: '100%',
+        height: '100%',
+    },
 });

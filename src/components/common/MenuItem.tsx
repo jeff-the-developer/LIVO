@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
@@ -8,12 +9,16 @@ import { typography } from '@theme/typography';
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface MenuItemProps {
     /** HugeIcons icon data from @hugeicons/core-free-icons */
-    icon: Parameters<typeof HugeiconsIcon>[0]['icon'];
+    icon?: Parameters<typeof HugeiconsIcon>[0]['icon'];
+    /** Custom image icon (takes precedence over `icon`) */
+    iconImage?: ImageSourcePropType;
+    /** Custom image icon size (default: 24) */
+    iconImageSize?: number;
     /** Menu label text */
     label: string;
     /** Optional subtitle text */
     subtitle?: string;
-    /** Icon color override (default: textSecondary) */
+    /** Icon color override (default: textSecondary) — used only with HugeIcons */
     iconColor?: string;
     /** Press handler */
     onPress?: () => void;
@@ -25,6 +30,8 @@ interface MenuItemProps {
 
 export default function MenuItem({
     icon,
+    iconImage,
+    iconImageSize = 24,
     label,
     subtitle,
     iconColor = colors.textSecondary,
@@ -42,7 +49,15 @@ export default function MenuItem({
             testID={testID}
         >
             <View style={styles.iconWrap}>
-                <HugeiconsIcon icon={icon} size={20} color={iconColor} />
+                {iconImage ? (
+                    <Image
+                        source={iconImage}
+                        style={{ width: iconImageSize, height: iconImageSize }}
+                        resizeMode="contain"
+                    />
+                ) : icon ? (
+                    <HugeiconsIcon icon={icon} size={20} color={iconColor} />
+                ) : null}
             </View>
             <View style={styles.content}>
                 <Text style={styles.label} numberOfLines={1}>
