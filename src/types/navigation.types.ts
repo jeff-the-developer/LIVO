@@ -78,6 +78,8 @@ export type AppStackParamList = {
     };
     LivoBusiness: undefined;
     SwitchAccount: undefined;
+    AddCard: undefined;
+    CardActivation: { tier?: string };
     // Auth screens reused inside app flow (Add New Account)
     Login: undefined;
     Register: undefined;

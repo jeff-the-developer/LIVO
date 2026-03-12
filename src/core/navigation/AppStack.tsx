@@ -38,6 +38,8 @@ import CreateUsernameScreen from '@screens/auth/CreateUsernameScreen';
 import PrimaryNationalityScreen from '@screens/kyc/PrimaryNationalityScreen';
 import LivoBusinessScreen from '@screens/profile/LivoBusinessScreen';
 import SwitchAccountScreen from '@screens/profile/SwitchAccountScreen';
+import AddCardScreen from '@screens/cards/AddCardScreen';
+import CardActivationScreen from '@screens/cards/CardActivationScreen';
 import LoginScreen from '@screens/auth/LoginScreen';
 import RegisterScreen from '@screens/auth/RegisterScreen';
 import ForgotPasswordScreen from '@screens/auth/ForgotPasswordScreen';
@@ -96,6 +98,8 @@ export default function AppStack(): React.ReactElement {
             <Stack.Screen name="PrimaryNationality" component={PrimaryNationalityScreen} />
             <Stack.Screen name="LivoBusiness" component={LivoBusinessScreen} />
             <Stack.Screen name="SwitchAccount" component={SwitchAccountScreen} />
+            <Stack.Screen name="AddCard" component={AddCardScreen} />
+            <Stack.Screen name="CardActivation" component={CardActivationScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

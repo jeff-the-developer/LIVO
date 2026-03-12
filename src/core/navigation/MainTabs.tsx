@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
 import type { MainTabParamList } from '@app-types/navigation.types';
 import { colors } from '@theme/colors';
 
@@ -12,25 +12,57 @@ import ProfileScreen from '@screens/profile/ProfileScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-function TabIcon({ label }: { label: string }): React.ReactElement {
-    const icons: Record<string, string> = {
-        Home: '⌂',
-        Cards: '▤',
-        Send: '↑',
-        Earn: '%',
-        Profile: '○',
-    };
-    return (
-        <Text style={{ fontSize: 18, lineHeight: 22 }}>{icons[label] ?? '•'}</Text>
-    );
-}
+// ─── Icon Assets ──────────────────────────────────────────────────────────────
+const ICONS: Record<string, { active: any; inactive: any }> = {
+    Home: {
+        active: require('@assets/images/icons/navbar/home_active.png'),
+        inactive: require('@assets/images/icons/navbar/home_inactive.png'),
+    },
+    Cards: {
+        active: require('@assets/images/icons/navbar/card_active.png'),
+        inactive: require('@assets/images/icons/navbar/card_inactive.png'),
+    },
+    Send: {
+        active: require('@assets/images/icons/navbar/send_active.png'),
+        inactive: require('@assets/images/icons/navbar/send_inactive.png'),
+    },
+    Earn: {
+        active: require('@assets/images/icons/navbar/invest_active.png'),
+        inactive: require('@assets/images/icons/navbar/invest_inactive.png'),
+    },
+    Profile: {
+        active: require('@assets/images/icons/navbar/manage_active.png'),
+        inactive: require('@assets/images/icons/navbar/manage_inactive.png'),
+    },
+};
 
+// ─── Tab Labels ───────────────────────────────────────────────────────────────
+const TAB_LABELS: Record<string, string> = {
+    Home: 'Home',
+    Cards: 'Card',
+    Send: 'Send',
+    Earn: 'Invest',
+    Profile: 'Manage',
+};
+
+// ─── Main Tabs ────────────────────────────────────────────────────────────────
 export default function MainTabs(): React.ReactElement {
     return (
         <Tab.Navigator
             screenOptions={({ route }) => ({
                 headerShown: false,
-                tabBarIcon: () => <TabIcon label={route.name} />,
+                tabBarIcon: ({ focused }) => {
+                    const icons = ICONS[route.name];
+                    if (!icons) return null;
+                    return (
+                        <Image
+                            source={focused ? icons.active : icons.inactive}
+                            style={s.icon}
+                            resizeMode="contain"
+                        />
+                    );
+                },
+                tabBarLabel: TAB_LABELS[route.name] ?? route.name,
                 tabBarStyle: {
                     backgroundColor: colors.tabBarBg,
                     borderTopColor: colors.border,
@@ -42,9 +74,9 @@ export default function MainTabs(): React.ReactElement {
                 tabBarActiveTintColor: colors.tabBarActive,
                 tabBarInactiveTintColor: colors.tabBarInactive,
                 tabBarLabelStyle: {
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: '600',
-                    marginTop: 2,
+                    marginTop: 4,
                 },
             })}
         >
@@ -56,3 +88,11 @@ export default function MainTabs(): React.ReactElement {
         </Tab.Navigator>
     );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+    icon: {
+        width: 26,
+        height: 26,
+    },
+});

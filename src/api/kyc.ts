@@ -170,7 +170,7 @@ export async function getKYCOverview(): Promise<ApiResponse<KYCOverviewResult>> 
     return mockDelay({
         success: true,
         data: {
-            current_level: 0,
+            current_level: 1,
             levels: MOCK_KYC_LEVELS,
         },
     });
@@ -198,7 +198,7 @@ export async function getKYCStatus(): Promise<ApiResponse<KYCStatusResult>> {
     return mockDelay({
         success: true,
         data: {
-            level: 0,
+            level: 1,
             status: 'approved',
         },
     });
