@@ -13,6 +13,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { useAuthStore } from '@stores/authStore';
 import { useAppStore } from '@stores/appStore';
+import { setSessionExpiredHandler } from '@api/client';
 import { queryClient } from '@config/queryClient';
 import { colors } from '@theme/colors';
 import AppNavigator from './navigation/AppNavigator';
@@ -26,10 +27,15 @@ export default function RootLayout(): React.ReactElement {
     });
 
     const hydrate = useAuthStore((s) => s.hydrate);
+    const logout = useAuthStore((s) => s.logout);
     const isAuthHydrated = useAuthStore((s) => s.isHydrated);
     const hydrateDisplay = useAppStore((s) => s.hydrate);
     const isDisplayHydrated = useAppStore((s) => s.isHydrated);
     const [hydrateStarted, setHydrateStarted] = useState(false);
+
+    useEffect(() => {
+        setSessionExpiredHandler(logout);
+    }, [logout]);
 
     useEffect(() => {
         if (!hydrateStarted) {

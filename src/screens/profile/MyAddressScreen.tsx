@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -21,7 +21,7 @@ import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
-import { useSaveAddress, handleApiError } from '@hooks/api/useProfile';
+import { useSaveAddress, useAddress, handleApiError } from '@hooks/api/useProfile';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -85,6 +85,20 @@ export default function MyAddressScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
     const [form, setForm] = useState<AddressForm>(INITIAL);
     const saveMutation = useSaveAddress();
+    const addressQuery = useAddress();
+
+    useEffect(() => {
+        const addr = addressQuery.data;
+        if (!addr) return;
+        setForm({
+            street: addr.street ?? '',
+            apartment: addr.apartment ?? '',
+            city: addr.city ?? '',
+            state: addr.state ?? '',
+            postalCode: addr.postal_code ?? '',
+            country: addr.country ?? '',
+        });
+    }, [addressQuery.data]);
 
     const update = (key: keyof AddressForm) => (v: string) =>
         setForm((prev) => ({ ...prev, [key]: v }));

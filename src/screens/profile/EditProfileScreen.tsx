@@ -52,7 +52,9 @@ export default function EditProfileScreen(): React.ReactElement {
     const user = useAuthStore((s) => s.user);
 
     const username = user?.username ?? 'User';
-    const memberSince = '15/12/2025'; // TODO: get from user.created_at
+    const memberSince = user?.created_at
+        ? new Date(user.created_at).toLocaleDateString('en-GB')
+        : '—';
 
     const deleteMutation = useDeleteAccount();
 

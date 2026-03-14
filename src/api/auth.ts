@@ -3,7 +3,7 @@ import { ENV } from '@config/env';
 import type { ApiResponse } from '@app-types/api.types';
 import type { User } from '@stores/authStore';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Public Types ─────────────────────────────────────────────────────────────
 export interface RegisterPayload {
     identifier: string;
     invite_code?: string;
@@ -15,7 +15,7 @@ export interface VerifyOTPPayload {
 }
 
 export interface SetPasswordPayload {
-    user_id: string;
+    email: string;
     password: string;
     confirm_password: string;
 }
@@ -33,6 +33,9 @@ export interface CreateUsernamePayload {
     user_id: string;
     username: string;
 }
+export interface SetupPINPayload {
+    pin: string;
+}
 
 export interface AuthTokens {
     access_token: string;
@@ -46,13 +49,62 @@ export interface RegisterResult {
 }
 
 export interface VerifyOTPResult {
-    user_id: string;
+    user_id?: string;
     verified: boolean;
 }
 
 export interface CheckUsernameResult {
     available: boolean;
     suggestion?: string;
+}
+
+// ─── Internal Backend Response Types ─────────────────────────────────────────
+interface BackendUser {
+    id: string;
+    email: string;
+    phone?: string;
+    username?: string;
+    svid?: string;
+    account_type: 'individual' | 'corporate';
+    kyc_level: number;
+    membership_tier: string;
+    email_verified?: boolean;
+    biometric_enabled?: boolean;
+    mfa_enabled?: boolean;
+    status?: string;
+    balance?: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
+interface BackendAuthResponse {
+    token: string;
+    refresh_token: string;
+    user: BackendUser;
+}
+
+function mapAuthResponse(raw: BackendAuthResponse): AuthTokens {
+    return {
+        access_token: raw.token,
+        refresh_token: raw.refresh_token,
+        user: {
+            user_id: raw.user.id,
+            username: raw.user.username ?? '',
+            email: raw.user.email,
+            phone: raw.user.phone,
+            account_type: raw.user.account_type,
+            kyc_level: raw.user.kyc_level as 0 | 1 | 2 | 3,
+            membership_tier: raw.user.membership_tier,
+            svid: raw.user.svid,
+            email_verified: raw.user.email_verified,
+            biometric_enabled: raw.user.biometric_enabled,
+            mfa_enabled: raw.user.mfa_enabled,
+            status: raw.user.status,
+            balance: raw.user.balance,
+            created_at: raw.user.created_at,
+            updated_at: raw.user.updated_at,
+        },
+    };
 }
 
 // ─── Mock Helpers ─────────────────────────────────────────────────────────────
@@ -80,7 +132,7 @@ const MOCK_TOKENS: AuthTokens = {
 
 const MOCK_EMAIL = 'demo@livo.com';
 const MOCK_PASSWORD = 'Demo1234!';
-const MOCK_OTP = '777777'; // 6-digit mock OTP
+const MOCK_OTP = '777777';
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 export async function registerUser(
@@ -96,11 +148,15 @@ export async function registerUser(
             message: 'Verification code sent',
         });
     }
-    const res = await apiClient.post<ApiResponse<RegisterResult>>(
+    const res = await apiClient.post<{ user_id: string; message: string }>(
         '/auth/register',
-        payload,
+        { email: payload.identifier, invite_code: payload.invite_code },
     );
-    return res.data;
+    return {
+        success: true,
+        message: res.data.message,
+        data: { user_id: res.data.user_id, identifier: payload.identifier },
+    };
 }
 
 // ─── Verify OTP ───────────────────────────────────────────────────────────────
@@ -119,28 +175,23 @@ export async function verifyOTP(
             data: { user_id: 'mock-user-001', verified: true },
         });
     }
-    const res = await apiClient.post<ApiResponse<VerifyOTPResult>>(
-        '/auth/verify-otp',
-        payload,
+    const res = await apiClient.post<{ verified: boolean }>(
+        '/auth/verify-email',
+        { email: payload.identifier, code: payload.code },
     );
-    return res.data;
+    return { success: true, data: { verified: res.data.verified } };
 }
 
 // ─── Resend OTP ───────────────────────────────────────────────────────────────
+// TODO(backend): add POST /auth/resend-otp endpoint — mocked until available
 export async function resendOTP(
-    identifier: string,
+    _identifier: string,
 ): Promise<ApiResponse<null>> {
-    if (ENV.MOCK_MODE) {
-        return mockDelay({
-            success: true,
-            data: null,
-            message: 'Verification code resent',
-        });
-    }
-    const res = await apiClient.post<ApiResponse<null>>('/auth/resend-otp', {
-        identifier,
+    return mockDelay({
+        success: true,
+        data: null,
+        message: 'Verification code resent',
     });
-    return res.data;
 }
 
 // ─── Set Password ─────────────────────────────────────────────────────────────
@@ -150,62 +201,59 @@ export async function setPassword(
     if (ENV.MOCK_MODE) {
         return mockDelay({
             success: true,
-            data: {
-                ...MOCK_TOKENS,
-                user: { ...MOCK_USER, email: 'demo@livo.com' },
-            },
+            data: { ...MOCK_TOKENS, user: { ...MOCK_USER, email: payload.email } },
         });
     }
-    const res = await apiClient.post<ApiResponse<AuthTokens>>(
-        '/auth/set-password',
-        payload,
-    );
-    return res.data;
+    await apiClient.post<{ success: boolean }>('/auth/set-password', {
+        email: payload.email,
+        password: payload.password,
+        confirm_password: payload.confirm_password,
+    });
+    // Tokens are obtained at the subsequent createUsername / login step
+    return { success: true, data: null as unknown as AuthTokens };
 }
 
 // ─── Check Username Availability ──────────────────────────────────────────────
+// TODO(backend): add GET /auth/check-username endpoint — mocked until available
 export async function checkUsername(
     username: string,
 ): Promise<ApiResponse<CheckUsernameResult>> {
-    if (ENV.MOCK_MODE) {
-        const taken = ['admin', 'livo', 'support', 'demo'].includes(
-            username.toLowerCase(),
-        );
-        return mockDelay(
-            {
-                success: true,
-                data: {
-                    available: !taken,
-                    suggestion: taken ? `${username}_${Math.floor(Math.random() * 99)}` : undefined,
-                },
-            },
-            400,
-        );
-    }
-    const res = await apiClient.get<ApiResponse<CheckUsernameResult>>(
-        `/auth/check-username?username=${encodeURIComponent(username)}`,
+    const taken = ['admin', 'livo', 'support', 'demo'].includes(
+        username.toLowerCase(),
     );
-    return res.data;
+    return mockDelay(
+        {
+            success: true,
+            data: {
+                available: !taken,
+                suggestion: taken ? `${username}_${Math.floor(Math.random() * 99)}` : undefined,
+            },
+        },
+        400,
+    );
 }
 
 // ─── Create Username ──────────────────────────────────────────────────────────
+// TODO(backend): add POST /auth/create-username endpoint — mocked until available
 export async function createUsername(
     payload: CreateUsernamePayload,
 ): Promise<ApiResponse<AuthTokens>> {
-    if (ENV.MOCK_MODE) {
-        return mockDelay({
-            success: true,
-            data: {
-                ...MOCK_TOKENS,
-                user: { ...MOCK_USER, username: payload.username },
-            },
-        });
-    }
-    const res = await apiClient.post<ApiResponse<AuthTokens>>(
-        '/auth/create-username',
-        payload,
-    );
-    return res.data;
+    return mockDelay({
+        success: true,
+        data: { ...MOCK_TOKENS, user: { ...MOCK_USER, username: payload.username } },
+    });
+}
+
+// ─── Setup PIN ───────────────────────────────────────────────────────────────
+// TODO(backend): add POST /auth/setup-pin endpoint — mocked until available
+export async function setupPIN(
+    payload: SetupPINPayload,
+): Promise<ApiResponse<null>> {
+    return mockDelay({
+        success: true,
+        data: null,
+        message: 'PIN configured successfully',
+    });
 }
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -213,10 +261,8 @@ export async function loginUser(
     payload: LoginPayload,
 ): Promise<ApiResponse<AuthTokens>> {
     if (ENV.MOCK_MODE) {
-        const validEmail =
-            payload.identifier.toLowerCase() === MOCK_EMAIL.toLowerCase();
+        const validEmail = payload.identifier.toLowerCase() === MOCK_EMAIL.toLowerCase();
         const validPassword = payload.password === MOCK_PASSWORD;
-
         if (!validEmail || !validPassword) {
             return mockError(
                 'PIN_INCORRECT',
@@ -225,11 +271,8 @@ export async function loginUser(
         }
         return mockDelay({ success: true, data: MOCK_TOKENS });
     }
-    const res = await apiClient.post<ApiResponse<AuthTokens>>(
-        '/auth/login',
-        payload,
-    );
-    return res.data;
+    const res = await apiClient.post<BackendAuthResponse>('/auth/login', payload);
+    return { success: true, data: mapAuthResponse(res.data) };
 }
 
 // ─── Google Login ─────────────────────────────────────────────────────────────
@@ -239,10 +282,15 @@ export async function loginWithGoogle(
     if (ENV.MOCK_MODE) {
         return mockDelay({ success: true, data: MOCK_TOKENS });
     }
-    const res = await apiClient.post<ApiResponse<AuthTokens>>('/auth/google', {
+    const res = await apiClient.post<BackendAuthResponse>('/auth/google', {
         id_token: idToken,
     });
-    return res.data;
+    return { success: true, data: mapAuthResponse(res.data) };
+}
+
+// ─── Logout ───────────────────────────────────────────────────────────────────
+export async function logoutUser(): Promise<void> {
+    await apiClient.post('/auth/logout');
 }
 
 // ─── Forgot Password ──────────────────────────────────────────────────────────
@@ -252,9 +300,8 @@ export async function forgotPassword(
     if (ENV.MOCK_MODE) {
         return mockDelay({ success: true, data: null, message: 'Reset email sent' });
     }
-    const res = await apiClient.post<ApiResponse<null>>(
-        '/auth/forgot-password',
-        { identifier },
-    );
-    return res.data;
+    await apiClient.post<{ success: boolean }>('/auth/forgot-password', {
+        email: identifier,
+    });
+    return { success: true, data: null };
 }

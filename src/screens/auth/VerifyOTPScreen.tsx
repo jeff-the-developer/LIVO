@@ -72,14 +72,11 @@ export default function VerifyOTPScreen(): React.ReactElement {
                     navigation.navigate('SetPassword', {
                         mode: 'register',
                         identifier,
-                        userId: result.data.user_id,
                     });
                 } else if (mode === 'forgot-password') {
-                    // Navigate to reset password flow
                     navigation.navigate('SetPassword', {
                         mode: 'reset-password',
                         identifier,
-                        userId: result.data.user_id,
                     });
                 } else {
                     // edit-email / edit-phone — go back to profile
@@ -217,17 +214,10 @@ export default function VerifyOTPScreen(): React.ReactElement {
                     <Text style={styles.errorText}>{error}</Text>
                 ) : (
                     <View style={styles.resendRow}>
-                        {resendTimer > 0 ? (
+                        {resendTimer > 0 && (
                             <Text style={styles.resendTimer}>
                                 Resend code in {resendTimer}s
                             </Text>
-                        ) : (
-                            <TouchableOpacity onPress={onResend} disabled={resendMutation.isPending}>
-                                <View style={styles.resendBtnRow}>
-                                    <Text style={styles.resendText}>Resend code</Text>
-                                    {resendSuccess && <Text style={styles.resendCheck}>  ✓</Text>}
-                                </View>
-                            </TouchableOpacity>
                         )}
                     </View>
                 )}

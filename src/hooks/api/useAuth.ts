@@ -14,6 +14,7 @@ import {
     loginWithGoogle,
     checkUsername,
     createUsername,
+    setupPIN,
     type RegisterPayload,
     type LoginPayload,
     type SetPasswordPayload,
@@ -112,6 +113,13 @@ export function useGoogleLogin() {
 export function useForgotPassword() {
     return useMutation({
         mutationFn: (identifier: string) => forgotPassword(identifier),
+    });
+}
+
+// ─── Setup PIN ────────────────────────────────────────────────────────────────
+export function useSetupPIN() {
+    return useMutation({
+        mutationFn: (payload: { pin: string }) => setupPIN(payload),
     });
 }
 

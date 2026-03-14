@@ -28,7 +28,7 @@ export default function AuthStack(): React.ReactElement {
                 gestureEnabled: true,
             }}
         >
-            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} options={{ gestureEnabled: false }} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
             <Stack.Screen name="SetPassword" component={SetPasswordScreen} />

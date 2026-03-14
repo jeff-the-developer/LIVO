@@ -47,6 +47,8 @@ export type AppStackParamList = {
     EditEmail: undefined;
     IdentityVerification: undefined;
     KYC1Verify: { accountType: 'individual' | 'corporate' };
+    KYC2Verify: undefined;
+    KYC3Verify: undefined;
     Verification: undefined;
     MyAddress: undefined;
     StatusUpgrade: undefined;
@@ -109,6 +111,12 @@ export type AppStackParamList = {
         userId?: string;
         currentUsername?: string;
     };
+    // Home tab sub-screens
+    AssetDetail: { symbol: string };
+    TransactionDetail: { id: string };
+    AllTransactions: undefined;
+    NotificationsList: undefined;
+    QRScanner: undefined;
 };
 
 // ─── Root ─────────────────────────────────────────────────────────────────────

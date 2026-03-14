@@ -8,6 +8,8 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -27,6 +29,7 @@ import BottomSheet from '@components/common/BottomSheet';
 import PasswordInput from '@components/common/PasswordInput';
 import SecurityTipSheet from '@components/common/SecurityTipSheet';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import { useChangePassword, handleApiError } from '@hooks/api/useSettings';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -136,6 +139,7 @@ export default function LoginPasswordScreen(): React.ReactElement {
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const changePwMutation = useChangePassword();
 
     // Validation rules for new password
     const hasLength = newPassword.length >= 8 && newPassword.length <= 32;
@@ -155,8 +159,13 @@ export default function LoginPasswordScreen(): React.ReactElement {
     };
 
     const onContinueNew = () => {
-        // TODO: call change password API
-        navigation.goBack();
+        changePwMutation.mutate(
+            { current_password: oldPassword, new_password: newPassword },
+            {
+                onSuccess: () => navigation.goBack(),
+                onError: (err) => Alert.alert('Error', handleApiError(err).message),
+            },
+        );
     };
 
     const verifyLabel =
@@ -272,27 +281,29 @@ export default function LoginPasswordScreen(): React.ReactElement {
 
                 {/* Continue Button */}
                 <View style={s.footer}>
-                    <TouchableOpacity
-                        style={[
-                            s.continueBtn,
-                            !(step === 'old' ? canContinueOld : canContinueNew) && s.continueBtnDisabled,
-                        ]}
-                        onPress={step === 'old' ? onContinueOld : onContinueNew}
-                        disabled={!(step === 'old' ? canContinueOld : canContinueNew)}
-                        activeOpacity={0.85}
-                        accessibilityLabel="Continue"
-                        accessibilityRole="button"
-                        testID="password-continue"
-                    >
-                        <Text
-                            style={[
-                                s.continueBtnText,
-                                !(step === 'old' ? canContinueOld : canContinueNew) && s.continueBtnTextDisabled,
-                            ]}
-                        >
-                            Continue
-                        </Text>
-                    </TouchableOpacity>
+                    {(() => {
+                        const canContinue = step === 'old' ? canContinueOld : canContinueNew;
+                        const isPending = step === 'new' && changePwMutation.isPending;
+                        return (
+                            <TouchableOpacity
+                                style={[s.continueBtn, (!canContinue || isPending) && s.continueBtnDisabled]}
+                                onPress={step === 'old' ? onContinueOld : onContinueNew}
+                                disabled={!canContinue || isPending}
+                                activeOpacity={0.85}
+                                accessibilityLabel="Continue"
+                                accessibilityRole="button"
+                                testID="password-continue"
+                            >
+                                {isPending ? (
+                                    <ActivityIndicator color={colors.buttonText} />
+                                ) : (
+                                    <Text style={[s.continueBtnText, !canContinue && s.continueBtnTextDisabled]}>
+                                        Continue
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })()}
                 </View>
             </KeyboardAvoidingView>
 

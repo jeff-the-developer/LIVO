@@ -3,6 +3,12 @@ import { ENV } from '@config/env';
 import { ErrorCode } from '@app-types/api.types';
 import * as tokenStorage from '@utils/tokenStorage';
 
+let _onSessionExpired: (() => void) | null = null;
+
+export function setSessionExpiredHandler(fn: () => void): void {
+    _onSessionExpired = fn;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface QueueItem {
     resolve: (token: string) => void;
@@ -35,6 +41,7 @@ const apiClient: AxiosInstance = axios.create({
     timeout: 15000,
     headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
     },
 });
 
@@ -57,6 +64,15 @@ apiClient.interceptors.response.use(
         const originalRequest = error.config as RetryableConfig | undefined;
 
         if (error.response?.status === 401 && originalRequest) {
+            // Pass business-logic 401s through directly — don't trigger token refresh
+            // for errors like INVALID_CREDENTIALS, ACCOUNT_LOCKED, etc.
+            const responseData = error.response?.data as Record<string, unknown> | undefined;
+            const apiError = responseData?.error as Record<string, unknown> | undefined;
+            const errorCode = apiError?.code as string | undefined;
+            if (errorCode && errorCode !== 'AUTH_EXPIRED' && errorCode !== 'AUTH_REQUIRED') {
+                return Promise.reject(apiError);
+            }
+
             if (originalRequest._retry) {
                 return Promise.reject({
                     code: ErrorCode.AUTH_EXPIRED,
@@ -85,14 +101,17 @@ apiClient.interceptors.response.use(
                 const refreshToken = await tokenStorage.getRefreshToken();
                 if (!refreshToken) throw new Error('No refresh token');
 
-                const { data } = await axios.post<{ access_token: string }>(
+                const { data } = await axios.post<{ token: string; refresh_token: string }>(
                     `${ENV.BASE_URL}/auth/refresh`,
                     { refresh_token: refreshToken },
                     { headers: { 'Content-Type': 'application/json' } },
                 );
 
-                const newToken = data.access_token;
+                const newToken = data.token;
                 await tokenStorage.saveToken(newToken);
+                if (data.refresh_token) {
+                    await tokenStorage.saveRefreshToken(data.refresh_token);
+                }
                 apiClient.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
 
                 processQueue(null, newToken);
@@ -105,6 +124,7 @@ apiClient.interceptors.response.use(
             } catch (refreshError) {
                 processQueue(refreshError, null);
                 await tokenStorage.clearAll();
+                _onSessionExpired?.();
                 return Promise.reject({
                     code: ErrorCode.AUTH_EXPIRED,
                     message: 'Session expired. Please log in again.',

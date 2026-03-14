@@ -47,6 +47,7 @@ function GoogleG(): React.ReactElement {
 
 export default function LoginScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
+  const canGoBack = navigation.canGoBack();
   const [showPassword, setShowPassword] = useState(false);
   const loginMutation = useLogin();
 
@@ -61,11 +62,13 @@ export default function LoginScreen(): React.ReactElement {
 
   const onSubmit = async (data: LoginForm) => {
     try {
+      console.log('[LoginScreen] Attempting login for:', data.identifier);
       await loginMutation.mutateAsync({
         identifier: data.identifier,
         password: data.password,
       });
     } catch (err) {
+      console.error('[LoginScreen] Login failed with error:', err);
       const e = handleApiError(err);
       Alert.alert(e.title, e.message);
     }
@@ -87,15 +90,19 @@ export default function LoginScreen(): React.ReactElement {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => navigation.goBack()}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityLabel="Go back"
-              accessibilityRole="button"
-            >
-              <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
+            {canGoBack ? (
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => navigation.goBack()}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Go back"
+                accessibilityRole="button"
+              >
+                <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.backBtn} />
+            )}
             <Text style={styles.title}>Login</Text>
             <View style={styles.headerSpacer} />
           </View>
@@ -200,24 +207,23 @@ export default function LoginScreen(): React.ReactElement {
             >
               <Text style={styles.socialBtnText}>Create an account</Text>
             </TouchableOpacity>
+            {/* Submit */}
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
+                onPress={handleSubmit(onSubmit)}
+                activeOpacity={0.85}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.buttonText} />
+                ) : (
+                  <Text style={styles.submitText}>Submit</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
-
-        {/* Submit */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
-            onPress={handleSubmit(onSubmit)}
-            activeOpacity={0.85}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={colors.buttonText} />
-            ) : (
-              <Text style={styles.submitText}>Submit</Text>
-            )}
-          </TouchableOpacity>
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

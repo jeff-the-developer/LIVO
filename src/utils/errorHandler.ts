@@ -21,6 +21,46 @@ const ERROR_MAP: Record<ErrorCode, UserFacingError> = {
         message: 'Please log in again to continue.',
         retryable: false,
     },
+    [ErrorCode.AUTH_REQUIRED]: {
+        title: 'Session Expired',
+        message: 'Please log in again to continue.',
+        retryable: false,
+    },
+    [ErrorCode.INVALID_CREDENTIALS]: {
+        title: 'Incorrect Details',
+        message: 'Invalid email or password. Please try again.',
+        retryable: true,
+    },
+    [ErrorCode.EMAIL_NOT_VERIFIED]: {
+        title: 'Email Not Verified',
+        message: 'Please verify your email before logging in.',
+        retryable: false,
+    },
+    [ErrorCode.ACCOUNT_LOCKED]: {
+        title: 'Account Locked',
+        message: 'Too many failed attempts. Please try again in 30 minutes.',
+        retryable: false,
+    },
+    [ErrorCode.EMAIL_EXISTS]: {
+        title: 'Email Already Registered',
+        message: 'An account with this email already exists.',
+        retryable: false,
+    },
+    [ErrorCode.INVALID_CODE]: {
+        title: 'Invalid Code',
+        message: 'The verification code is incorrect or has expired.',
+        retryable: true,
+    },
+    [ErrorCode.USER_NOT_FOUND]: {
+        title: 'Account Not Found',
+        message: 'No account found with those details.',
+        retryable: false,
+    },
+    [ErrorCode.WEAK_PASSWORD]: {
+        title: 'Weak Password',
+        message: 'Password must be at least 8 characters with an uppercase letter and a number.',
+        retryable: true,
+    },
     [ErrorCode.KYC_REQUIRED]: {
         title: 'Verification Required',
         message: 'Complete identity verification to unlock this feature.',

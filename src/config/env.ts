@@ -1,6 +1,6 @@
 export const ENV = {
-    BASE_URL: 'https://api.livopay.com/v1',
-    MOCK_MODE: true,
+    BASE_URL: 'http://192.168.1.5:8080',
+    MOCK_MODE: false,
     ENVIRONMENT: 'development',
 } as const;
 

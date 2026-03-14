@@ -9,17 +9,23 @@ import {
     getAddress,
     saveAddress,
     getUserProfile,
+    updateProfile,
+    setAntiPhishing,
+    getSessions,
+    terminateSession,
     deleteAccount,
     type UpdateAvatarPayload,
     type UpdatePhonePayload,
     type UpdateEmailPayload,
     type AddressPayload,
+    type UpdateProfilePayload,
 } from '@api/user';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 export const profileKeys = {
     all: ['profile'] as const,
     address: ['profile', 'address'] as const,
+    sessions: ['profile', 'sessions'] as const,
 };
 
 // ─── Get User Profile ─────────────────────────────────────────────────────────
@@ -96,6 +102,51 @@ export function useSaveAddress() {
         mutationFn: (payload: AddressPayload) => saveAddress(payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: profileKeys.address });
+        },
+    });
+}
+
+// ─── Update Profile ───────────────────────────────────────────────────────────
+export function useUpdateProfile() {
+    const queryClient = useQueryClient();
+    const setUser = useAuthStore((s) => s.setUser);
+    const user = useAuthStore((s) => s.user);
+
+    return useMutation({
+        mutationFn: (payload: UpdateProfilePayload) => updateProfile(payload),
+        onSuccess: (data) => {
+            if (user) {
+                setUser({ ...user, ...data.data.user });
+            }
+            queryClient.invalidateQueries({ queryKey: profileKeys.all });
+        },
+    });
+}
+
+// ─── Set Anti-Phishing Code ───────────────────────────────────────────────────
+export function useSetAntiPhishing() {
+    return useMutation({
+        mutationFn: (code: string) => setAntiPhishing(code),
+    });
+}
+
+// ─── Get Sessions ─────────────────────────────────────────────────────────────
+export function useSessions() {
+    return useQuery({
+        queryKey: profileKeys.sessions,
+        queryFn: getSessions,
+        select: (data) => data.data,
+    });
+}
+
+// ─── Terminate Session ────────────────────────────────────────────────────────
+export function useTerminateSession() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (sessionId: string) => terminateSession(sessionId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: profileKeys.sessions });
         },
     });
 }

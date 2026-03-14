@@ -25,15 +25,26 @@ import { typography } from '@theme/typography';
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DocumentCameraProps {
     visible: boolean;
-    documentType: 'id_front' | 'id_back' | 'passport' | 'business_license' | 'address_proof';
+    documentType: 'id_front' | 'id_back' | 'passport' | 'business_license' | 'address_proof' | 'selfie';
     onCapture: (imageUri: string) => void;
     onClose: () => void;
     testID?: string;
 }
 
 // ─── Document Instructions ────────────────────────────────────────────────────
-const getDocumentInstructions = (type: DocumentCameraProps['documentType']) => {
+const getDocumentInstructions = (type: DocumentCameraProps['documentType']): { title: string; instructions: string[]; useFrontCamera: boolean } => {
     switch (type) {
+        case 'selfie':
+            return {
+                title: 'Selfie Verification',
+                instructions: [
+                    'Look directly at the camera',
+                    'Make sure your face is well-lit',
+                    'Remove glasses or hats if possible',
+                    'Keep a neutral expression',
+                ],
+                useFrontCamera: true,
+            };
         case 'id_front':
             return {
                 title: 'ID Card - Front',
@@ -43,6 +54,7 @@ const getDocumentInstructions = (type: DocumentCameraProps['documentType']) => {
                     'Avoid glare and shadows',
                     'Keep the card flat and steady',
                 ],
+                useFrontCamera: false,
             };
         case 'id_back':
             return {
@@ -53,6 +65,7 @@ const getDocumentInstructions = (type: DocumentCameraProps['documentType']) => {
                     'Avoid glare and shadows',
                     'Keep the card flat and steady',
                 ],
+                useFrontCamera: false,
             };
         case 'passport':
             return {
@@ -63,6 +76,7 @@ const getDocumentInstructions = (type: DocumentCameraProps['documentType']) => {
                     'Avoid glare and shadows',
                     'Keep the passport flat and open',
                 ],
+                useFrontCamera: false,
             };
         case 'business_license':
             return {
@@ -73,6 +87,7 @@ const getDocumentInstructions = (type: DocumentCameraProps['documentType']) => {
                     'Avoid glare and shadows',
                     'Keep the document flat',
                 ],
+                useFrontCamera: false,
             };
         case 'address_proof':
             return {
@@ -83,11 +98,13 @@ const getDocumentInstructions = (type: DocumentCameraProps['documentType']) => {
                     'Avoid glare and shadows',
                     'Keep the document flat',
                 ],
+                useFrontCamera: false,
             };
         default:
             return {
                 title: 'Document',
                 instructions: ['Place your document in the frame'],
+                useFrontCamera: false,
             };
     }
 };
@@ -99,12 +116,11 @@ export default function DocumentCamera({
     onClose,
     testID,
 }: DocumentCameraProps): React.ReactElement {
-    const [type, setType] = useState<CameraType>('back');
+    const { title, instructions, useFrontCamera } = getDocumentInstructions(documentType);
+    const [type, setType] = useState<CameraType>(useFrontCamera ? 'front' : 'back');
     const [permission, requestPermission] = useCameraPermissions();
     const [isCapturing, setIsCapturing] = useState(false);
     const cameraRef = useRef<CameraView>(null);
-
-    const { title, instructions } = getDocumentInstructions(documentType);
 
     React.useEffect(() => {
         if (visible && !permission?.granted) {

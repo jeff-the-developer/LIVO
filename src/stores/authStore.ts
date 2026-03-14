@@ -1,5 +1,17 @@
+import axios from 'axios';
 import { create } from 'zustand';
 import * as tokenStorage from '@utils/tokenStorage';
+import { logoutUser } from '@api/auth';
+import { ENV } from '@config/env';
+
+function isJwtExpired(token: string): boolean {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return typeof payload.exp === 'number' && payload.exp * 1000 < Date.now();
+    } catch {
+        return true;
+    }
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface User {
@@ -12,6 +24,14 @@ export interface User {
     kyc_level: 0 | 1 | 2 | 3;
     membership_tier: string;
     svid?: string;
+    date_of_birth?: string;
+    email_verified?: boolean;
+    biometric_enabled?: boolean;
+    mfa_enabled?: boolean;
+    status?: string;
+    balance?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 interface AuthState {
@@ -58,6 +78,11 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     },
 
     async logout() {
+        try {
+            await logoutUser();
+        } catch {
+            // Ignore — clear local state regardless of server response
+        }
         await tokenStorage.clearAll();
         set({
             ...initialState,
@@ -80,11 +105,35 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     async hydrate() {
         set({ isLoading: true });
         try {
-            const token = await tokenStorage.getToken();
+            const storedToken = await tokenStorage.getToken();
+            const refreshToken = await tokenStorage.getRefreshToken();
             const user = await tokenStorage.getUser<User>();
-            if (token && user) {
-                set({ token, user, isLoggedIn: true });
-            } else {
+
+            if (!storedToken || !user) {
+                await get().logout();
+                return;
+            }
+
+            if (!isJwtExpired(storedToken)) {
+                set({ token: storedToken, user, isLoggedIn: true });
+                return;
+            }
+
+            // Access token expired — try to refresh silently
+            if (!refreshToken) {
+                await get().logout();
+                return;
+            }
+            try {
+                const { data } = await axios.post<{ token: string }>(
+                    `${ENV.BASE_URL}/auth/refresh`,
+                    { refresh_token: refreshToken },
+                    { headers: { 'Content-Type': 'application/json' } },
+                );
+                const newToken = data.token;
+                await tokenStorage.saveToken(newToken);
+                set({ token: newToken, user, isLoggedIn: true });
+            } catch {
                 await get().logout();
             }
         } catch {

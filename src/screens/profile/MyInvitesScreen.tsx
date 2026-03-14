@@ -5,6 +5,8 @@ import {
     Image,
     TouchableOpacity,
     StyleSheet,
+    ScrollView,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -16,46 +18,88 @@ import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import { useReferralInfo } from '@hooks/api/useSettings';
+import type { ReferralInfo, ReferralReward } from '@api/settings';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const livoIcon = require('@assets/images/branding/logo_gradient_icon.png');
 
+function formatDate(iso: string): string {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
-function OverviewTab(): React.ReactElement {
+function OverviewTab({ data }: { data: ReferralInfo | undefined }): React.ReactElement {
+    const totalEarned = data?.total_earned ?? 0;
+    const txCount = data?.rewards?.length ?? 0;
+    const totalInvited = data?.total_invites ?? 0;
+
     return (
         <View style={tabS.container}>
             <View style={tabS.row}>
-                <Text style={tabS.label}>Total Transactions</Text>
-                <Text style={tabS.value}>0.00 USD</Text>
+                <Text style={tabS.label}>Reward Amount</Text>
+                <Text style={tabS.value}>{totalEarned.toFixed(2)} USD</Text>
             </View>
             <View style={tabS.divider} />
             <View style={tabS.row}>
                 <Text style={tabS.label}>Number of Transactions</Text>
-                <Text style={tabS.value}>0</Text>
-            </View>
-            <View style={tabS.divider} />
-            <View style={tabS.row}>
-                <Text style={tabS.label}>Reward Amount</Text>
-                <Text style={tabS.value}>0.00 USD</Text>
+                <Text style={tabS.value}>{txCount}</Text>
             </View>
             <View style={tabS.divider} />
             <View style={tabS.row}>
                 <Text style={tabS.label}>Total Users Invited</Text>
-                <Text style={tabS.value}>0</Text>
+                <Text style={tabS.value}>{totalInvited}</Text>
+            </View>
+        </View>
+    );
+}
+
+// ─── Reward Row ───────────────────────────────────────────────────────────────
+function RewardRow({ item }: { item: ReferralReward }): React.ReactElement {
+    return (
+        <View style={listS.row}>
+            <View style={listS.info}>
+                <Text style={listS.username}>{item.friend_username}</Text>
+                <Text style={listS.date}>{formatDate(item.created_at)}</Text>
+            </View>
+            <View style={listS.right}>
+                <Text style={listS.amount}>+{item.amount.toFixed(2)} {item.currency}</Text>
+                <Text style={[listS.status, item.status === 'credited' ? listS.credited : listS.pending]}>
+                    {item.status}
+                </Text>
             </View>
         </View>
     );
 }
 
 // ─── Invited Users Tab ────────────────────────────────────────────────────────
-function InvitedUsersTab(): React.ReactElement {
+function InvitedUsersTab({ data }: { data: ReferralInfo | undefined }): React.ReactElement {
+    const rewards = data?.rewards ?? [];
+
+    if (rewards.length === 0) {
+        return (
+            <View style={emptyS.container}>
+                <Image source={livoIcon} style={emptyS.logo} resizeMode="contain" />
+                <Text style={emptyS.text}>No Records</Text>
+            </View>
+        );
+    }
+
     return (
-        <View style={emptyS.container}>
-            <Image source={livoIcon} style={emptyS.logo} resizeMode="contain" />
-            <Text style={emptyS.text}>No Records</Text>
-        </View>
+        <ScrollView
+            style={listS.scroll}
+            contentContainerStyle={listS.content}
+            showsVerticalScrollIndicator={false}
+        >
+            {rewards.map((item) => (
+                <RewardRow key={item.id} item={item} />
+            ))}
+            <View style={{ height: spacing.xxl }} />
+        </ScrollView>
     );
 }
 
@@ -63,6 +107,7 @@ function InvitedUsersTab(): React.ReactElement {
 export default function MyInvitesScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
     const [activeTab, setActiveTab] = useState<'overview' | 'invited'>('overview');
+    const { data: referral, isLoading } = useReferralInfo();
 
     return (
         <SafeAreaView style={s.safe} edges={['top']}>
@@ -94,7 +139,15 @@ export default function MyInvitesScreen(): React.ReactElement {
             </View>
 
             {/* Tab Content */}
-            {activeTab === 'overview' ? <OverviewTab /> : <InvitedUsersTab />}
+            {isLoading ? (
+                <View style={s.loading}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+            ) : activeTab === 'overview' ? (
+                <OverviewTab data={referral} />
+            ) : (
+                <InvitedUsersTab data={referral} />
+            )}
         </SafeAreaView>
     );
 }
@@ -106,6 +159,7 @@ const s = StyleSheet.create({
     backBtn: { width: 36, alignItems: 'flex-start' },
     headerTitle: { flex: 1, textAlign: 'center', ...typography.h4, color: colors.textPrimary, fontWeight: '700' },
     headerSpacer: { width: 36 },
+    loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
     tabs: {
         flexDirection: 'row', marginHorizontal: spacing.base,
@@ -131,6 +185,25 @@ const tabS = StyleSheet.create({
     label: { ...typography.bodyMd, color: colors.textPrimary },
     value: { ...typography.bodyMd, color: colors.textPrimary, fontWeight: '700' },
     divider: { height: 0.5, backgroundColor: colors.border },
+});
+
+// ─── Invited Users List Styles ────────────────────────────────────────────────
+const listS = StyleSheet.create({
+    scroll: { flex: 1 },
+    content: { paddingHorizontal: spacing.base },
+    row: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingVertical: spacing.md,
+        borderBottomWidth: 0.5, borderBottomColor: colors.border,
+    },
+    info: { flex: 1 },
+    username: { ...typography.bodyMd, color: colors.textPrimary, fontWeight: '600' },
+    date: { ...typography.bodySm, color: colors.textSecondary, marginTop: 2 },
+    right: { alignItems: 'flex-end' },
+    amount: { ...typography.bodyMd, color: colors.textPrimary, fontWeight: '700' },
+    status: { ...typography.bodySm, marginTop: 2, fontWeight: '500', textTransform: 'capitalize' },
+    credited: { color: colors.primary },
+    pending: { color: colors.textMuted },
 });
 
 // ─── Empty State Styles ───────────────────────────────────────────────────────

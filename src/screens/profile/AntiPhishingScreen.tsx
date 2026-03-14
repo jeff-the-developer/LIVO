@@ -7,6 +7,8 @@ import {
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -19,6 +21,7 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import SecurityTipSheet from '@components/common/SecurityTipSheet';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import { useSetAntiPhishing, handleApiError } from '@hooks/api/useProfile';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -30,6 +33,7 @@ export default function AntiPhishingScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
     const [code, setCode] = useState('');
     const [showTip, setShowTip] = useState(false);
+    const antiPhishingMutation = useSetAntiPhishing();
 
     const canSubmit = code.length > 0;
 
@@ -37,8 +41,10 @@ export default function AntiPhishingScreen(): React.ReactElement {
 
     const onTipOkay = () => {
         setShowTip(false);
-        // TODO: call API to set anti-phishing code
-        navigation.goBack();
+        antiPhishingMutation.mutate(code, {
+            onSuccess: () => navigation.goBack(),
+            onError: (err) => Alert.alert('Error', handleApiError(err).message),
+        });
     };
 
     const handleCodeChange = (text: string) => {
@@ -94,17 +100,21 @@ export default function AntiPhishingScreen(): React.ReactElement {
                 {/* Submit Button */}
                 <View style={s.footer}>
                     <TouchableOpacity
-                        style={[s.submitBtn, !canSubmit && s.submitBtnDisabled]}
+                        style={[s.submitBtn, (!canSubmit || antiPhishingMutation.isPending) && s.submitBtnDisabled]}
                         onPress={onSubmit}
-                        disabled={!canSubmit}
+                        disabled={!canSubmit || antiPhishingMutation.isPending}
                         activeOpacity={0.85}
                         accessibilityLabel="Submit anti-phishing code"
                         accessibilityRole="button"
                         testID="phishing-submit"
                     >
-                        <Text style={[s.submitBtnText, !canSubmit && s.submitBtnTextDisabled]}>
-                            Submit
-                        </Text>
+                        {antiPhishingMutation.isPending ? (
+                            <ActivityIndicator color={colors.buttonText} />
+                        ) : (
+                            <Text style={[s.submitBtnText, !canSubmit && s.submitBtnTextDisabled]}>
+                                Submit
+                            </Text>
+                        )}
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>

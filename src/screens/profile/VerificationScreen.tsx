@@ -29,9 +29,9 @@ type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 // ─── Important Notes (checkboxes that must be checked before proceeding) ──────
 const IMPORTANT_NOTES = [
-    'Interest accrual starts the next day after deposit & pays out to Earning+',
-    'Interest bonus is 0.0% based on your membership tier',
-    'Coupons can boost interest but cannot be stacked',
+    'All submitted documents must be valid and not expired',
+    'Documents must clearly show your name, date, and relevant details',
+    'Submitting false or misleading information may result in account suspension',
 ];
 
 // ─── Important Notes Bottom Sheet ─────────────────────────────────────────────
@@ -188,20 +188,24 @@ export default function VerificationScreen(): React.ReactElement {
     const { data: kycData, isLoading } = useKYCOverview();
 
     const [showNotes, setShowNotes] = useState(false);
-
-    const onStartVerification = () => {
-        setShowNotes(true);
-    };
+    const [pendingLevel, setPendingLevel] = useState<number | null>(null);
 
     const onNotesSubmit = () => {
         setShowNotes(false);
-        navigation.navigate('IdentityVerification');
+        if (pendingLevel === 1) {
+            navigation.navigate('IdentityVerification');
+        } else if (pendingLevel === 2) {
+            navigation.navigate('KYC2Verify');
+        } else if (pendingLevel === 3) {
+            navigation.navigate('KYC3Verify');
+        }
+        setPendingLevel(null);
     };
 
     const getButtonHandler = (level: number) => () => {
-        if (level === 1) {
-            onStartVerification();
-        }
+        if (level === 0) return;
+        setPendingLevel(level);
+        setShowNotes(true);
     };
 
     const levels = kycData?.levels ?? [];

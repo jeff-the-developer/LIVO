@@ -5,6 +5,8 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -19,12 +21,91 @@ import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import { useSessions, useTerminateSession, handleApiError } from '@hooks/api/useProfile';
+import type { SessionInfo } from '@api/user';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
+
+function formatDate(iso: string): string {
+    return new Date(iso).toLocaleString('en-GB', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).replace(',', '');
+}
+
+// ─── Session Card ─────────────────────────────────────────────────────────────
+function SessionCard({ session, onTerminate, terminating }: {
+    session: SessionInfo;
+    onTerminate?: () => void;
+    terminating?: boolean;
+}): React.ReactElement {
+    return (
+        <>
+            <Text style={s.deviceName}>{session.device || 'Unknown Device'}</Text>
+            <View style={s.card}>
+                <View style={s.cardRow}>
+                    <Text style={s.cardLabel}>Date</Text>
+                    <Text style={s.cardValue}>{formatDate(session.date)}</Text>
+                </View>
+                <View style={s.cardDivider} />
+                <View style={s.cardRow}>
+                    <Text style={s.cardLabel}>Location</Text>
+                    <Text style={s.cardValue}>{session.location || '—'}</Text>
+                </View>
+                <View style={s.cardDivider} />
+                <View style={s.cardRow}>
+                    <Text style={s.cardLabel}>IP Address</Text>
+                    <Text style={s.cardValue}>{session.ip || '—'}</Text>
+                </View>
+            </View>
+            {onTerminate && (
+                <TouchableOpacity
+                    style={s.terminateBtn}
+                    onPress={onTerminate}
+                    disabled={terminating}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Remove session"
+                    accessibilityRole="button"
+                >
+                    {terminating ? (
+                        <ActivityIndicator size="small" color={colors.textPrimary} />
+                    ) : (
+                        <Text style={s.terminateBtnText}>Remove</Text>
+                    )}
+                </TouchableOpacity>
+            )}
+        </>
+    );
+}
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function MyDeviceScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
+    const sessionsQuery = useSessions();
+    const terminateMutation = useTerminateSession();
+
+    const currentSession = sessionsQuery.data?.current_session ?? null;
+    const otherSessions = sessionsQuery.data?.other_sessions ?? [];
+
+    const onTerminate = (sessionId: string) => {
+        Alert.alert('Remove Device', 'Remove this device from your account?', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Remove',
+                style: 'destructive',
+                onPress: () =>
+                    terminateMutation.mutate(sessionId, {
+                        onError: (err) =>
+                            Alert.alert('Error', handleApiError(err).message),
+                    }),
+            },
+        ]);
+    };
 
     return (
         <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
@@ -52,31 +133,47 @@ export default function MyDeviceScreen(): React.ReactElement {
                     <Text style={s.bannerSubtitle}>to other portals</Text>
                 </View>
 
-                {/* Current Session Divider */}
-                <View style={s.sectionRow}>
-                    <View style={s.sectionLine} />
-                    <Text style={s.sectionLabel}>Current Session</Text>
-                    <View style={s.sectionLine} />
-                </View>
+                {sessionsQuery.isLoading ? (
+                    <ActivityIndicator color={colors.textPrimary} style={{ marginTop: spacing.xl }} />
+                ) : (
+                    <>
+                        {/* Current Session */}
+                        <View style={s.sectionRow}>
+                            <View style={s.sectionLine} />
+                            <Text style={s.sectionLabel}>Current Session</Text>
+                            <View style={s.sectionLine} />
+                        </View>
 
-                {/* Session Card */}
-                <Text style={s.deviceName}>Solanamobile Seeker</Text>
-                <View style={s.card}>
-                    <View style={s.cardRow}>
-                        <Text style={s.cardLabel}>Date</Text>
-                        <Text style={s.cardValue}>2025/12/23 01:23:50</Text>
-                    </View>
-                    <View style={s.cardDivider} />
-                    <View style={s.cardRow}>
-                        <Text style={s.cardLabel}>Location</Text>
-                        <Text style={s.cardValue}>addw</Text>
-                    </View>
-                    <View style={s.cardDivider} />
-                    <View style={s.cardRow}>
-                        <Text style={s.cardLabel}>IP Address</Text>
-                        <Text style={s.cardValue}>94224.424</Text>
-                    </View>
-                </View>
+                        {currentSession ? (
+                            <SessionCard session={currentSession} />
+                        ) : (
+                            <Text style={s.emptyText}>No current session data</Text>
+                        )}
+
+                        {/* Other Sessions */}
+                        {otherSessions.length > 0 && (
+                            <>
+                                <View style={[s.sectionRow, { marginTop: spacing.xl }]}>
+                                    <View style={s.sectionLine} />
+                                    <Text style={s.sectionLabel}>Other Sessions</Text>
+                                    <View style={s.sectionLine} />
+                                </View>
+                                {otherSessions.map((session) => (
+                                    <View key={session.id} style={{ marginBottom: spacing.lg }}>
+                                        <SessionCard
+                                            session={session}
+                                            onTerminate={() => onTerminate(session.id)}
+                                            terminating={
+                                                terminateMutation.isPending &&
+                                                terminateMutation.variables === session.id
+                                            }
+                                        />
+                                    </View>
+                                ))}
+                            </>
+                        )}
+                    </>
+                )}
             </ScrollView>
 
             {/* Footer Buttons */}
@@ -90,15 +187,11 @@ export default function MyDeviceScreen(): React.ReactElement {
                 >
                     <Text style={s.connectBtnText}>Connect</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                    style={s.noDeviceBtn}
-                    activeOpacity={0.85}
-                    testID="device-none"
-                    accessibilityLabel="No other logged-in devices"
-                    accessibilityRole="button"
-                >
-                    <Text style={s.noDeviceBtnText}>No other logged-in devices</Text>
-                </TouchableOpacity>
+                {otherSessions.length === 0 && !sessionsQuery.isLoading && (
+                    <View style={s.noDeviceBtn}>
+                        <Text style={s.noDeviceBtnText}>No other logged-in devices</Text>
+                    </View>
+                )}
             </View>
         </SafeAreaView>
     );
@@ -118,7 +211,7 @@ const s = StyleSheet.create({
         color: colors.textPrimary, fontWeight: '700',
     },
     headerSpacer: { width: 36 },
-    content: { paddingHorizontal: spacing.base },
+    content: { paddingHorizontal: spacing.base, paddingBottom: spacing.base },
     banner: {
         backgroundColor: palette.green50, borderRadius: borderRadius.lg,
         alignItems: 'center', justifyContent: 'center',
@@ -155,6 +248,16 @@ const s = StyleSheet.create({
     cardLabel: { ...typography.bodySm, color: colors.textMuted },
     cardValue: { ...typography.bodySm, color: colors.textPrimary, fontWeight: '600' },
     cardDivider: { height: 0.5, backgroundColor: colors.border },
+    emptyText: {
+        ...typography.bodySm, color: colors.textMuted,
+        textAlign: 'center', marginBottom: spacing.lg,
+    },
+    terminateBtn: {
+        alignItems: 'center',
+        paddingVertical: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    terminateBtnText: { ...typography.bodySm, color: colors.textPrimary, fontWeight: '500' },
     footer: {
         paddingHorizontal: spacing.base, paddingBottom: spacing.base,
         gap: spacing.sm,

@@ -25,6 +25,8 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { RootNavigatorParamList } from "@app-types/navigation.types";
 import { useSetPassword, handleApiError } from '@hooks/api/useAuth';
+import { loginUser } from '@api/auth';
+import { useAuthStore } from '@stores/authStore';
 
 type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
 type RouteProps = NativeStackScreenProps<RootNavigatorParamList, 'SetPassword'>['route'];
@@ -51,8 +53,9 @@ export default function SetPasswordScreen(): React.ReactElement {
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const setPasswordMutation = useSetPassword();
+  const authLogin = useAuthStore((s) => s.login);
 
-  const { mode, identifier, userId } = route.params;
+  const { mode, identifier } = route.params;
   const isRegister = mode === 'register';
 
   const {
@@ -65,31 +68,37 @@ export default function SetPasswordScreen(): React.ReactElement {
   });
 
   const onSubmit = async (data: SetPasswordForm) => {
+    if (isLoading) return;
+    setIsSubmitting(true);
     try {
       await setPasswordMutation.mutateAsync({
-        user_id: userId ?? 'mock-user-001',
+        email: identifier,
         password: data.password,
         confirm_password: data.confirm,
       });
 
       if (isRegister) {
-        // Continue to username creation
-        navigation.navigate('CreateUsername', {
-          mode: 'register',
-          userId: userId,
-        });
+        const loginResult = await loginUser({ identifier, password: data.password });
+        await authLogin(
+          loginResult.data.access_token,
+          loginResult.data.refresh_token,
+          loginResult.data.user,
+        );
+        // AppNavigator switches to AppStack automatically when isLoggedIn becomes true
       } else {
-        // Reset password — go back to login
         Alert.alert('Success', 'Password reset successfully');
         navigation.navigate('Login');
       }
     } catch (err) {
       const e = handleApiError(err);
       Alert.alert(e.title, e.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const isLoading = setPasswordMutation.isPending;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isLoading = setPasswordMutation.isPending || isSubmitting;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -194,7 +203,6 @@ export default function SetPasswordScreen(): React.ReactElement {
                       value={value}
                       secureTextEntry={!showConfirm}
                       returnKeyType="done"
-                      onSubmitEditing={handleSubmit(onSubmit)}
                     />
                   )}
                 />

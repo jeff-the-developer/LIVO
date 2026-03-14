@@ -12,8 +12,11 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type {
+    NativeStackNavigationProp,
+    NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
     ArrowLeft01FreeIcons,
@@ -22,63 +25,25 @@ import {
     Camera01FreeIcons,
     CheckmarkCircle02FreeIcons,
 } from '@hugeicons/core-free-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { colors, palette } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
-import { useStartKYC, handleApiError } from '@hooks/api/useKYC';
+import {
+    useSubmitKYCLevel1Individual,
+    useSubmitKYCLevel1Corporate,
+    handleApiError,
+} from '@hooks/api/useKYC';
+import { uploadFile } from '@api/upload';
 import OptionPicker from '@components/common/OptionPicker';
 import DocumentCamera from '@components/kyc/DocumentCamera';
-// Mock document picker types and functions for now
-interface DocumentPickerAsset {
-    name: string;
-    uri: string;
-    size?: number;
-    type?: string;
-}
-
-interface DocumentPickerResult {
-    type: 'success' | 'cancel';
-    canceled?: boolean;
-    assets?: DocumentPickerAsset[];
-}
-
-const getDocumentAsync = async (options: any): Promise<DocumentPickerResult> => {
-    // Mock implementation - would use expo-document-picker in production
-    return { type: 'cancel', canceled: true };
-};
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
+type RouteProps = NativeStackScreenProps<AppStackParamList, 'KYC1Verify'>['route'];
 
-// ─── KYC1 Form State ──────────────────────────────────────────────────────────
-interface KYC1Form {
-    entityName: string;
-    regNumber: string;
-    registrationFile: string | null;
-    dateOfEstablishment: string;
-    mainBusiness: string;
-    registeredAddress: string;
-    stateProvince: string;
-    city: string;
-    detailedAddress: string;
-    zipCode: string;
-}
-
-const INITIAL_FORM: KYC1Form = {
-    entityName: '',
-    regNumber: '',
-    registrationFile: null,
-    dateOfEstablishment: '',
-    mainBusiness: '',
-    registeredAddress: '',
-    stateProvince: '',
-    city: '',
-    detailedAddress: '',
-    zipCode: '',
-};
-
-// ─── Reusable Text Field ──────────────────────────────────────────────────────
+// ─── Shared sub-components ────────────────────────────────────────────────────
 function TextField({
     label,
     value,
@@ -111,7 +76,6 @@ function TextField({
     );
 }
 
-// ─── Reusable Selector Field (tap to open picker) ────────────────────────────
 function SelectorField({
     label,
     value,
@@ -127,68 +91,45 @@ function SelectorField({
 }): React.ReactElement {
     return (
         <View style={fieldStyles.group}>
-            <Text style={fieldStyles.label}>{label}</Text>
+            {!!label && <Text style={fieldStyles.label}>{label}</Text>}
             <TouchableOpacity
                 style={fieldStyles.selectorBtn}
                 onPress={onPress}
                 activeOpacity={0.7}
-                accessibilityLabel={label}
+                accessibilityLabel={label || placeholder}
                 accessibilityRole="button"
                 testID={testID}
             >
-                <Text
-                    style={[
-                        fieldStyles.selectorText,
-                        !value && fieldStyles.selectorPlaceholder,
-                    ]}
-                >
+                <Text style={[fieldStyles.selectorText, !value && fieldStyles.selectorPlaceholder]}>
                     {value || placeholder}
                 </Text>
-                <HugeiconsIcon
-                    icon={ArrowRight01FreeIcons}
-                    size={18}
-                    color={colors.textMuted}
-                />
+                <HugeiconsIcon icon={ArrowRight01FreeIcons} size={18} color={colors.textMuted} />
             </TouchableOpacity>
         </View>
     );
 }
 
-// ─── File Upload Zone ─────────────────────────────────────────────────────────
 function FileUploadZone({
-    hasFile,
+    label,
     fileName,
     onCameraPress,
     onFilePress,
+    testID,
 }: {
-    hasFile: boolean;
-    fileName?: string;
+    label: string;
+    fileName: string | null;
     onCameraPress: () => void;
-    onFilePress: () => void;
+    onFilePress?: () => void;
+    testID: string;
 }): React.ReactElement {
-    if (hasFile && fileName) {
+    if (fileName) {
         return (
             <View style={fieldStyles.group}>
-                <Text style={fieldStyles.label}>Registration File</Text>
-                <View style={uploadStyles.uploadedContainer}>
-                    <View style={uploadStyles.uploadedIcon}>
-                        <HugeiconsIcon
-                            icon={CheckmarkCircle02FreeIcons}
-                            size={24}
-                            color={colors.success}
-                        />
-                    </View>
-                    <View style={uploadStyles.uploadedContent}>
-                        <Text style={uploadStyles.uploadedText}>File uploaded</Text>
-                        <Text style={uploadStyles.uploadedName}>{fileName}</Text>
-                    </View>
-                    <TouchableOpacity
-                        style={uploadStyles.changeBtn}
-                        onPress={onFilePress}
-                        activeOpacity={0.7}
-                        accessibilityLabel="Change file"
-                        accessibilityRole="button"
-                    >
+                <Text style={fieldStyles.label}>{label}</Text>
+                <View style={uploadStyles.uploaded}>
+                    <HugeiconsIcon icon={CheckmarkCircle02FreeIcons} size={22} color={colors.success} />
+                    <Text style={uploadStyles.uploadedName} numberOfLines={1}>{fileName}</Text>
+                    <TouchableOpacity onPress={onCameraPress} activeOpacity={0.7} testID={`${testID}-change`}>
                         <Text style={uploadStyles.changeBtnText}>Change</Text>
                     </TouchableOpacity>
                 </View>
@@ -198,176 +139,273 @@ function FileUploadZone({
 
     return (
         <View style={fieldStyles.group}>
-            <Text style={fieldStyles.label}>Registration File</Text>
+            <Text style={fieldStyles.label}>{label}</Text>
             <View style={uploadStyles.zone}>
-                <View style={uploadStyles.iconWrap}>
-                    <HugeiconsIcon
-                        icon={FileAttachmentFreeIcons}
-                        size={28}
-                        color={colors.textMuted}
-                    />
-                </View>
+                <HugeiconsIcon icon={FileAttachmentFreeIcons} size={28} color={colors.textMuted} />
                 <Text style={uploadStyles.uploadText}>Upload File</Text>
-                <Text style={uploadStyles.uploadHint}>
-                    Business registration/certificate
-                </Text>
-                
                 <View style={uploadStyles.uploadButtons}>
                     <TouchableOpacity
                         style={uploadStyles.uploadBtn}
                         onPress={onCameraPress}
                         activeOpacity={0.7}
-                        accessibilityLabel="Take photo"
-                        accessibilityRole="button"
-                        testID="kyc1-camera"
+                        testID={`${testID}-camera`}
                     >
-                        <HugeiconsIcon
-                            icon={Camera01FreeIcons}
-                            size={18}
-                            color={colors.textInverse}
-                        />
+                        <HugeiconsIcon icon={Camera01FreeIcons} size={16} color={colors.textInverse} />
                         <Text style={uploadStyles.uploadBtnText}>Camera</Text>
                     </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                        style={[uploadStyles.uploadBtn, uploadStyles.uploadBtnSecondary]}
-                        onPress={onFilePress}
-                        activeOpacity={0.7}
-                        accessibilityLabel="Choose from files"
-                        accessibilityRole="button"
-                        testID="kyc1-file"
-                    >
-                        <HugeiconsIcon
-                            icon={FileAttachmentFreeIcons}
-                            size={18}
-                            color={colors.textPrimary}
-                        />
-                        <Text style={[uploadStyles.uploadBtnText, uploadStyles.uploadBtnTextSecondary]}>
-                            Files
-                        </Text>
-                    </TouchableOpacity>
+                    {onFilePress && (
+                        <TouchableOpacity
+                            style={[uploadStyles.uploadBtn, uploadStyles.uploadBtnSecondary]}
+                            onPress={onFilePress}
+                            activeOpacity={0.7}
+                            testID={`${testID}-file`}
+                        >
+                            <HugeiconsIcon icon={FileAttachmentFreeIcons} size={16} color={colors.textPrimary} />
+                            <Text style={[uploadStyles.uploadBtnText, uploadStyles.uploadBtnTextSecondary]}>Files</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
         </View>
     );
 }
 
+// ─── Corporate Form ───────────────────────────────────────────────────────────
+interface CorporateForm {
+    entityName: string;
+    regNumber: string;
+    registrationFileUri: string | null;
+    registrationFileName: string | null;
+    dateOfEstablishment: string;
+    mainBusiness: string;
+    registeredAddress: string;
+}
+
+const INITIAL_CORPORATE: CorporateForm = {
+    entityName: '',
+    regNumber: '',
+    registrationFileUri: null,
+    registrationFileName: null,
+    dateOfEstablishment: '',
+    mainBusiness: '',
+    registeredAddress: '',
+};
+
+// ─── Individual Form ──────────────────────────────────────────────────────────
+interface IndividualForm {
+    fullName: string;
+    nationality: string;
+    idType: string;
+    idNumber: string;
+    idFrontUri: string | null;
+    idFrontName: string | null;
+    idBackUri: string | null;
+    idBackName: string | null;
+    selfieUri: string | null;
+    selfieName: string | null;
+}
+
+const INITIAL_INDIVIDUAL: IndividualForm = {
+    fullName: '',
+    nationality: '',
+    idType: '',
+    idNumber: '',
+    idFrontUri: null,
+    idFrontName: null,
+    idBackUri: null,
+    idBackName: null,
+    selfieUri: null,
+    selfieName: null,
+};
+
+const ID_TYPES = ['Passport', 'National ID', 'Driver\'s License'];
+const idTypeToApiValue = (label: string): 'passport' | 'national_id' | 'drivers_license' => {
+    if (label === 'Passport') return 'passport';
+    if (label === 'Driver\'s License') return 'drivers_license';
+    return 'national_id';
+};
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function KYC1VerifyScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
-    const startKYCMutation = useStartKYC();
+    const route = useRoute<RouteProps>();
+    const { accountType } = route.params;
 
-    const [form, setForm] = useState<KYC1Form>(INITIAL_FORM);
+    const corporateMutation = useSubmitKYCLevel1Corporate();
+    const individualMutation = useSubmitKYCLevel1Individual();
+
+    const [corpForm, setCorpForm] = useState<CorporateForm>(INITIAL_CORPORATE);
+    const [indForm, setIndForm] = useState<IndividualForm>(INITIAL_INDIVIDUAL);
+    const [isUploading, setIsUploading] = useState(false);
+
     const [pickerConfig, setPickerConfig] = useState<{
         visible: boolean;
         title: string;
         options: string[];
         onSelect: (val: string) => void;
-    }>({
-        visible: false,
-        title: '',
-        options: [],
-        onSelect: () => { },
-    });
-    const [showCamera, setShowCamera] = useState(false);
+    }>({ visible: false, title: '', options: [], onSelect: () => {} });
+
+    type CameraTarget =
+        | 'corp_registration'
+        | 'ind_id_front'
+        | 'ind_id_back'
+        | 'ind_selfie';
+    const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
 
     const openPicker = (title: string, options: string[], onSelect: (val: string) => void) => {
         setPickerConfig({ visible: true, title, options, onSelect });
     };
+    const closePicker = () => setPickerConfig((p) => ({ ...p, visible: false }));
 
-    const closePicker = () => {
-        setPickerConfig((prev) => ({ ...prev, visible: false }));
-    };
-
-    const update = (key: keyof KYC1Form) => (value: string) =>
-        setForm((prev) => ({ ...prev, [key]: value }));
-
-    // Check required fields
-    const isValid =
-        form.entityName.trim().length > 0 &&
-        form.regNumber.trim().length > 0 &&
-        form.city.trim().length > 0 &&
-        form.zipCode.trim().length > 0;
-
-    const onTakePhoto = () => {
-        setShowCamera(true);
-    };
-
-    const onSelectFile = async () => {
+    // ─── Document picker (files) ───────────────────────────────────────────────
+    const pickFile = async (onPicked: (uri: string, name: string) => void) => {
         try {
-            const result = await getDocumentAsync({
+            const result = await DocumentPicker.getDocumentAsync({
                 type: ['image/*', 'application/pdf'],
                 copyToCacheDirectory: true,
             });
-
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 const file = result.assets[0];
-                setForm((prev) => ({
-                    ...prev,
-                    registrationFile: file.name,
-                }));
+                onPicked(file.uri, file.name ?? 'document');
             }
-        } catch (error) {
+        } catch {
             Alert.alert('Error', 'Failed to select file. Please try again.');
         }
     };
 
+    // ─── Camera capture ────────────────────────────────────────────────────────
     const onCameraCapture = (imageUri: string) => {
-        // Extract filename from URI
-        const fileName = imageUri.split('/').pop() || 'document.jpg';
-        
-        // NOTE: In production, you would upload the imageUri to your backend here
-        // For now, just store the filename for UI demonstration
-        setForm((prev) => ({
-            ...prev,
-            registrationFile: fileName,
-        }));
-        setShowCamera(false);
+        const fileName = imageUri.split('/').pop() ?? 'photo.jpg';
+        switch (cameraTarget) {
+            case 'corp_registration':
+                setCorpForm((p) => ({ ...p, registrationFileUri: imageUri, registrationFileName: fileName }));
+                break;
+            case 'ind_id_front':
+                setIndForm((p) => ({ ...p, idFrontUri: imageUri, idFrontName: fileName }));
+                break;
+            case 'ind_id_back':
+                setIndForm((p) => ({ ...p, idBackUri: imageUri, idBackName: fileName }));
+                break;
+            case 'ind_selfie':
+                setIndForm((p) => ({ ...p, selfieUri: imageUri, selfieName: fileName }));
+                break;
+        }
+        setCameraTarget(null);
     };
 
-    const onSelectDate = () => {
-        const options = ['15/06/2019', '15/06/2020', '01/01/2021', '10/10/2022'];
-        openPicker('Date of Establishment', options, (val) => {
-            update('dateOfEstablishment')(val);
-            closePicker();
-        });
+    // ─── Upload helper ────────────────────────────────────────────────────────
+    const upload = async (uri: string): Promise<string> => {
+        const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+        const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext}`;
+        const result = await uploadFile(uri, mimeType);
+        return result.file_id;
     };
 
-    const onSelectBusiness = () => {
-        const options = ['Technology', 'Finance', 'Trading', 'Consulting', 'Real Estate', 'Other'];
-        openPicker('Main Business', options, (val) => {
-            update('mainBusiness')(val);
-            closePicker();
-        });
-    };
+    // ─── Corporate submit ─────────────────────────────────────────────────────
+    const isCorporateValid =
+        corpForm.entityName.trim().length > 0 &&
+        corpForm.regNumber.trim().length > 0 &&
+        corpForm.registrationFileUri !== null &&
+        corpForm.dateOfEstablishment.trim().length > 0 &&
+        corpForm.mainBusiness.trim().length > 0 &&
+        corpForm.registeredAddress.trim().length > 0;
 
-    const onSelectAddress = () => {
-        const options = ['Hong Kong Office', 'Singapore HQ', 'London Branch', 'New York Corp'];
-        openPicker('Registered Address', options, (val) => {
-            update('registeredAddress')(val);
-            closePicker();
-        });
-    };
+    const onSubmitCorporate = async () => {
+        if (!isCorporateValid || !corpForm.registrationFileUri) return;
+        try {
+            setIsUploading(true);
+            const regFileId = await upload(corpForm.registrationFileUri);
+            setIsUploading(false);
 
-    const onNext = () => {
-        if (!isValid) return;
-
-        startKYCMutation.mutate(
-            { account_type: 'corporate' }, // or 'individual' based on previous screen
-            {
-                onSuccess: (data) => {
-                    Alert.alert(
-                        'KYC1 Submitted',
-                        data.message ?? 'Your documents are under review. We will notify you once verification is complete.',
-                        [{ text: 'OK', onPress: () => navigation.goBack() }],
-                    );
+            corporateMutation.mutate(
+                {
+                    entity_name: corpForm.entityName.trim(),
+                    reg_number: corpForm.regNumber.trim(),
+                    registration_file: regFileId,
+                    date_of_establishment: corpForm.dateOfEstablishment,
+                    main_business: corpForm.mainBusiness,
+                    registered_address: corpForm.registeredAddress,
                 },
-                onError: (err) => {
-                    Alert.alert('Error', handleApiError(err).message);
+                {
+                    onSuccess: () => {
+                        Alert.alert(
+                            'Submitted',
+                            'Your documents are under review. We will notify you once verification is complete.',
+                            [{ text: 'OK', onPress: () => navigation.goBack() }],
+                        );
+                    },
+                    onError: (err) => Alert.alert('Error', handleApiError(err).message),
                 },
-            },
-        );
+            );
+        } catch (err) {
+            setIsUploading(false);
+            Alert.alert('Upload Failed', handleApiError(err).message);
+        }
     };
+
+    // ─── Individual submit ────────────────────────────────────────────────────
+    const isIndividualValid =
+        indForm.fullName.trim().length > 0 &&
+        indForm.nationality.trim().length > 0 &&
+        indForm.idType.trim().length > 0 &&
+        indForm.idNumber.trim().length > 0 &&
+        indForm.idFrontUri !== null &&
+        indForm.idBackUri !== null &&
+        indForm.selfieUri !== null;
+
+    const onSubmitIndividual = async () => {
+        if (!isIndividualValid || !indForm.idFrontUri || !indForm.idBackUri || !indForm.selfieUri) return;
+        try {
+            setIsUploading(true);
+            const [idFrontId, idBackId, selfieId] = await Promise.all([
+                upload(indForm.idFrontUri),
+                upload(indForm.idBackUri),
+                upload(indForm.selfieUri),
+            ]);
+            setIsUploading(false);
+
+            individualMutation.mutate(
+                {
+                    full_name: indForm.fullName.trim(),
+                    nationality: indForm.nationality,
+                    id_type: idTypeToApiValue(indForm.idType),
+                    id_number: indForm.idNumber.trim(),
+                    id_front: idFrontId,
+                    id_back: idBackId,
+                    selfie: selfieId,
+                },
+                {
+                    onSuccess: () => {
+                        Alert.alert(
+                            'Submitted',
+                            'Your documents are under review. We will notify you once verification is complete.',
+                            [{ text: 'OK', onPress: () => navigation.goBack() }],
+                        );
+                    },
+                    onError: (err) => Alert.alert('Error', handleApiError(err).message),
+                },
+            );
+        } catch (err) {
+            setIsUploading(false);
+            Alert.alert('Upload Failed', handleApiError(err).message);
+        }
+    };
+
+    const isCorporate = accountType === 'corporate';
+    const isSubmitting = corporateMutation.isPending || individualMutation.isPending || isUploading;
+    const isValid = isCorporate ? isCorporateValid : isIndividualValid;
+    const onSubmit = isCorporate ? onSubmitCorporate : onSubmitIndividual;
+
+    // Camera document type for the current target
+    const cameraDocType = (() => {
+        switch (cameraTarget) {
+            case 'corp_registration': return 'business_license' as const;
+            case 'ind_id_front': return 'id_front' as const;
+            case 'ind_id_back': return 'id_back' as const;
+            case 'ind_selfie': return 'selfie' as const;
+            default: return 'business_license' as const;
+        }
+    })();
 
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
@@ -381,13 +419,11 @@ export default function KYC1VerifyScreen(): React.ReactElement {
                     accessibilityRole="button"
                     testID="kyc1-back"
                 >
-                    <HugeiconsIcon
-                        icon={ArrowLeft01FreeIcons}
-                        size={24}
-                        color={colors.textPrimary}
-                    />
+                    <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>KYC1 Verify</Text>
+                <Text style={styles.headerTitle}>
+                    {isCorporate ? 'Corporate KYC1' : 'Individual KYC1'}
+                </Text>
                 <View style={styles.headerSpacer} />
             </View>
 
@@ -396,125 +432,168 @@ export default function KYC1VerifyScreen(): React.ReactElement {
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
             >
-
                 <ScrollView
                     style={styles.flex}
                     contentContainerStyle={styles.scroll}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    <TextField
-                        label="Entity Name"
-                        value={form.entityName}
-                        placeholder="Please Enter (In English Only)"
-                        onChangeText={update('entityName')}
-                        testID="kyc1-entity-name"
-                    />
-
-                    <TextField
-                        label="Reg No."
-                        value={form.regNumber}
-                        placeholder="Enter Registration Number"
-                        onChangeText={update('regNumber')}
-                        testID="kyc1-reg-number"
-                    />
-
-                    <FileUploadZone
-                        hasFile={!!form.registrationFile}
-                        fileName={form.registrationFile || undefined}
-                        onCameraPress={onTakePhoto}
-                        onFilePress={onSelectFile}
-                    />
-
-                    <SelectorField
-                        label="Date of Establishment"
-                        value={form.dateOfEstablishment}
-                        placeholder="Select"
-                        onPress={onSelectDate}
-                        testID="kyc1-date"
-                    />
-
-                    <SelectorField
-                        label="Main Business"
-                        value={form.mainBusiness}
-                        placeholder="Select"
-                        onPress={onSelectBusiness}
-                        testID="kyc1-business"
-                    />
-
-                    {/* ─── Registered Address ──────────────────── */}
-                    <Text style={styles.sectionTitle}>Registered Address</Text>
-
-                    <SelectorField
-                        label=""
-                        value={form.registeredAddress}
-                        placeholder="Select Registered Address"
-                        onPress={onSelectAddress}
-                        testID="kyc1-reg-address"
-                    />
-
-                    <TextInput
-                        style={fieldStyles.input}
-                        value={form.stateProvince}
-                        onChangeText={update('stateProvince')}
-                        placeholder="State/Province"
-                        placeholderTextColor={colors.textMuted}
-                        accessibilityLabel="State or Province"
-                        testID="kyc1-state"
-                    />
-
-                    <TextInput
-                        style={fieldStyles.input}
-                        value={form.city}
-                        onChangeText={update('city')}
-                        placeholder="City"
-                        placeholderTextColor={colors.textMuted}
-                        accessibilityLabel="City"
-                        testID="kyc1-city"
-                    />
-
-                    <TextInput
-                        style={fieldStyles.input}
-                        value={form.detailedAddress}
-                        onChangeText={update('detailedAddress')}
-                        placeholder="Detailed Residential Address"
-                        placeholderTextColor={colors.textMuted}
-                        accessibilityLabel="Detailed Address"
-                        testID="kyc1-detail-address"
-                    />
-
-                    <TextInput
-                        style={fieldStyles.input}
-                        value={form.zipCode}
-                        onChangeText={update('zipCode')}
-                        placeholder="Zip Code"
-                        placeholderTextColor={colors.textMuted}
-                        keyboardType="number-pad"
-                        accessibilityLabel="Zip Code"
-                        testID="kyc1-zip"
-                    />
+                    {isCorporate ? (
+                        // ─── Corporate Form ────────────────────────────────
+                        <>
+                            <TextField
+                                label="Entity Name"
+                                value={corpForm.entityName}
+                                placeholder="Legal entity name (English only)"
+                                onChangeText={(v) => setCorpForm((p) => ({ ...p, entityName: v }))}
+                                testID="kyc1-entity-name"
+                            />
+                            <TextField
+                                label="Registration Number"
+                                value={corpForm.regNumber}
+                                placeholder="Company registration number"
+                                onChangeText={(v) => setCorpForm((p) => ({ ...p, regNumber: v }))}
+                                testID="kyc1-reg-number"
+                            />
+                            <FileUploadZone
+                                label="Registration Certificate"
+                                fileName={corpForm.registrationFileName}
+                                onCameraPress={() => setCameraTarget('corp_registration')}
+                                onFilePress={() =>
+                                    pickFile((uri, name) =>
+                                        setCorpForm((p) => ({
+                                            ...p,
+                                            registrationFileUri: uri,
+                                            registrationFileName: name,
+                                        }))
+                                    )
+                                }
+                                testID="kyc1-reg-file"
+                            />
+                            <SelectorField
+                                label="Date of Establishment"
+                                value={corpForm.dateOfEstablishment}
+                                placeholder="Select"
+                                onPress={() =>
+                                    openPicker(
+                                        'Date of Establishment',
+                                        ['2015 or earlier', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024'],
+                                        (val) => {
+                                            setCorpForm((p) => ({ ...p, dateOfEstablishment: val }));
+                                            closePicker();
+                                        },
+                                    )
+                                }
+                                testID="kyc1-date"
+                            />
+                            <SelectorField
+                                label="Main Business"
+                                value={corpForm.mainBusiness}
+                                placeholder="Select"
+                                onPress={() =>
+                                    openPicker(
+                                        'Main Business',
+                                        ['Technology', 'Finance', 'Trading', 'Consulting', 'Real Estate', 'Other'],
+                                        (val) => {
+                                            setCorpForm((p) => ({ ...p, mainBusiness: val }));
+                                            closePicker();
+                                        },
+                                    )
+                                }
+                                testID="kyc1-business"
+                            />
+                            <TextField
+                                label="Registered Address"
+                                value={corpForm.registeredAddress}
+                                placeholder="Full registered business address"
+                                onChangeText={(v) => setCorpForm((p) => ({ ...p, registeredAddress: v }))}
+                                testID="kyc1-reg-address"
+                            />
+                        </>
+                    ) : (
+                        // ─── Individual Form ───────────────────────────────
+                        <>
+                            <TextField
+                                label="Full Legal Name"
+                                value={indForm.fullName}
+                                placeholder="As shown on your ID document"
+                                onChangeText={(v) => setIndForm((p) => ({ ...p, fullName: v }))}
+                                testID="kyc1-full-name"
+                            />
+                            <SelectorField
+                                label="Nationality"
+                                value={indForm.nationality}
+                                placeholder="Select nationality"
+                                onPress={() =>
+                                    openPicker(
+                                        'Nationality',
+                                        ['US', 'GB', 'HK', 'SG', 'CA', 'AU', 'Other'],
+                                        (val) => {
+                                            setIndForm((p) => ({ ...p, nationality: val }));
+                                            closePicker();
+                                        },
+                                    )
+                                }
+                                testID="kyc1-nationality"
+                            />
+                            <SelectorField
+                                label="ID Type"
+                                value={indForm.idType}
+                                placeholder="Select ID type"
+                                onPress={() =>
+                                    openPicker('ID Type', ID_TYPES, (val) => {
+                                        setIndForm((p) => ({ ...p, idType: val }));
+                                        closePicker();
+                                    })
+                                }
+                                testID="kyc1-id-type"
+                            />
+                            <TextField
+                                label="ID Number"
+                                value={indForm.idNumber}
+                                placeholder="Document number"
+                                onChangeText={(v) => setIndForm((p) => ({ ...p, idNumber: v }))}
+                                testID="kyc1-id-number"
+                            />
+                            <FileUploadZone
+                                label="ID Front"
+                                fileName={indForm.idFrontName}
+                                onCameraPress={() => setCameraTarget('ind_id_front')}
+                                testID="kyc1-id-front"
+                            />
+                            <FileUploadZone
+                                label="ID Back"
+                                fileName={indForm.idBackName}
+                                onCameraPress={() => setCameraTarget('ind_id_back')}
+                                testID="kyc1-id-back"
+                            />
+                            <FileUploadZone
+                                label="Selfie"
+                                fileName={indForm.selfieName}
+                                onCameraPress={() => setCameraTarget('ind_selfie')}
+                                testID="kyc1-selfie"
+                            />
+                        </>
+                    )}
 
                     <View style={{ height: spacing.xl }} />
                 </ScrollView>
 
-                {/* ─── Next Button ──────────────────────────── */}
+                {/* ─── Submit Button ──────────────────────────── */}
                 <View style={styles.footer}>
                     <TouchableOpacity
-                        style={[
-                            styles.nextBtn,
-                            (!isValid || startKYCMutation.isPending) && styles.btnDisabled,
-                        ]}
-                        onPress={onNext}
+                        style={[styles.nextBtn, (!isValid || isSubmitting) && styles.btnDisabled]}
+                        onPress={onSubmit}
                         activeOpacity={0.85}
-                        disabled={!isValid || startKYCMutation.isPending}
-                        accessibilityLabel="Next"
+                        disabled={!isValid || isSubmitting}
+                        accessibilityLabel="Submit"
                         accessibilityRole="button"
-                        testID="kyc1-next"
+                        testID="kyc1-submit"
                     >
-                        {startKYCMutation.isPending ? (
+                        {isSubmitting ? (
                             <ActivityIndicator color={colors.buttonText} />
                         ) : (
-                            <Text style={styles.nextText}>Next</Text>
+                            <Text style={styles.nextText}>Submit for Review</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -529,17 +608,17 @@ export default function KYC1VerifyScreen(): React.ReactElement {
             />
 
             <DocumentCamera
-                visible={showCamera}
-                documentType="business_license"
+                visible={cameraTarget !== null}
+                documentType={cameraDocType}
                 onCapture={onCameraCapture}
-                onClose={() => setShowCamera(false)}
+                onClose={() => setCameraTarget(null)}
                 testID="kyc1-camera"
             />
-        </SafeAreaView >
+        </SafeAreaView>
     );
 }
 
-// ─── Screen Styles ────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
     flex: { flex: 1 },
@@ -549,7 +628,6 @@ const styles = StyleSheet.create({
         gap: spacing.base,
         paddingBottom: spacing.base,
     },
-
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -565,14 +643,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     headerSpacer: { width: 36 },
-
-    sectionTitle: {
-        ...typography.bodyMd,
-        color: colors.textPrimary,
-        fontWeight: '700',
-        marginTop: spacing.xs,
-    },
-
     footer: {
         paddingHorizontal: spacing.base,
         paddingBottom: spacing.base,
@@ -594,7 +664,6 @@ const styles = StyleSheet.create({
     },
 });
 
-// ─── Field Styles ─────────────────────────────────────────────────────────────
 const fieldStyles = StyleSheet.create({
     group: {},
     label: {
@@ -622,17 +691,10 @@ const fieldStyles = StyleSheet.create({
         paddingHorizontal: spacing.base,
         paddingVertical: spacing.md,
     },
-    selectorText: {
-        flex: 1,
-        ...typography.bodyMd,
-        color: colors.textPrimary,
-    },
-    selectorPlaceholder: {
-        color: colors.textMuted,
-    },
+    selectorText: { flex: 1, ...typography.bodyMd, color: colors.textPrimary },
+    selectorPlaceholder: { color: colors.textMuted },
 });
 
-// ─── Upload Zone Styles ───────────────────────────────────────────────────────
 const uploadStyles = StyleSheet.create({
     zone: {
         borderWidth: 1.5,
@@ -641,28 +703,10 @@ const uploadStyles = StyleSheet.create({
         borderRadius: borderRadius.card,
         paddingVertical: spacing.xl,
         alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.background,
+        gap: spacing.xs,
     },
-    iconWrap: {
-        marginBottom: spacing.sm,
-    },
-    uploadText: {
-        ...typography.bodyMd,
-        color: colors.textMuted,
-        fontWeight: '500',
-        marginBottom: spacing.xs,
-    },
-    uploadHint: {
-        ...typography.caption,
-        color: colors.textMuted,
-        marginBottom: spacing.base,
-    },
-    uploadButtons: {
-        flexDirection: 'row',
-        gap: spacing.sm,
-        marginTop: spacing.sm,
-    },
+    uploadText: { ...typography.bodySm, color: colors.textMuted, fontWeight: '500' },
+    uploadButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
     uploadBtn: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -677,17 +721,9 @@ const uploadStyles = StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
     },
-    uploadBtnText: {
-        ...typography.caption,
-        color: colors.textInverse,
-        fontWeight: '600',
-    },
-    uploadBtnTextSecondary: {
-        color: colors.textPrimary,
-    },
-    
-    // Uploaded state
-    uploadedContainer: {
+    uploadBtnText: { ...typography.caption, color: colors.textInverse, fontWeight: '600' },
+    uploadBtnTextSecondary: { color: colors.textPrimary },
+    uploaded: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: palette.green50,
@@ -696,31 +732,13 @@ const uploadStyles = StyleSheet.create({
         borderColor: colors.success,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.base,
-    },
-    uploadedIcon: {
-        marginRight: spacing.sm,
-    },
-    uploadedContent: {
-        flex: 1,
-    },
-    uploadedText: {
-        ...typography.caption,
-        color: colors.success,
-        fontWeight: '600',
-        marginBottom: 2,
+        gap: spacing.sm,
     },
     uploadedName: {
+        flex: 1,
         ...typography.bodySm,
         color: colors.textPrimary,
         fontWeight: '500',
     },
-    changeBtn: {
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-    },
-    changeBtnText: {
-        ...typography.caption,
-        color: colors.primary,
-        fontWeight: '600',
-    },
+    changeBtnText: { ...typography.caption, color: colors.primary, fontWeight: '600' },
 });

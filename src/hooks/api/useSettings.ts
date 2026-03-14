@@ -8,10 +8,14 @@ import {
     updateAppearanceSettings,
     getReferralInfo,
     sendInvite,
+    getWithdrawalSettings,
+    updateWithdrawalSettings,
     type SecuritySettings,
     type ChangePasswordPayload,
     type AppearanceSettings,
     type SendInvitePayload,
+    type WithdrawalSettings,
+    type UpdateWithdrawalSettingsPayload,
 } from '@api/settings';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
@@ -20,6 +24,7 @@ export const settingsKeys = {
     security: ['settings', 'security'] as const,
     appearance: ['settings', 'appearance'] as const,
     referral: ['settings', 'referral'] as const,
+    withdrawal: ['settings', 'withdrawal'] as const,
 };
 
 // ─── Security ─────────────────────────────────────────────────────────────────
@@ -82,6 +87,27 @@ export function useReferralInfo() {
 export function useSendInvite() {
     return useMutation({
         mutationFn: (payload: SendInvitePayload) => sendInvite(payload),
+    });
+}
+
+// ─── Withdrawal Settings ──────────────────────────────────────────────────────
+export function useWithdrawalSettings() {
+    return useQuery({
+        queryKey: settingsKeys.withdrawal,
+        queryFn: getWithdrawalSettings,
+        select: (data) => data.data,
+    });
+}
+
+export function useUpdateWithdrawalSettings() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (payload: UpdateWithdrawalSettingsPayload) =>
+            updateWithdrawalSettings(payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: settingsKeys.withdrawal });
+        },
     });
 }
 

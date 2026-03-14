@@ -226,9 +226,7 @@ export default function CreateUsernameScreen(): React.ReactElement {
                 // Edit profile mode — just go back
                 navigation.goBack();
             } else {
-                // Register mode — navigate to MainTabs.
-                // In the original auth flow AppNavigator switches stacks automatically,
-                // but when reached from AppStack (Add New Account), we must navigate explicitly.
+                // Register mode — navigate to MainTabs since PIN Setup endpoint isn't ready.
                 navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
             }
         } catch (e) {

@@ -1,12 +1,4 @@
-// ─── Membership API Implementation ───────────────────────────────────────────
-// NOTE: Currently using only mock data until backend team completes membership endpoints
-//
-// Mock endpoints implemented:
-// - GET /membership/tiers (Get all membership tiers and comparison)
-// - GET /membership/current (Get user's current membership status)
-// - POST /membership/upgrade (Initiate membership upgrade)
-// - GET /membership/benefits-info (Get benefit explanations)
-
+import apiClient from './client';
 import type { ApiResponse } from '@app-types/api.types';
 
 import type {
@@ -203,15 +195,33 @@ export async function getMembershipTiers(): Promise<ApiResponse<MembershipTierDa
     });
 }
 
+// ─── Tier name normalisation (DB names → frontend IDs) ───────────────────────
+const TIER_NAME_MAP: Record<string, MembershipTier> = {
+    newbie: 'basic',
+    selected: 'standard',
+    premium: 'premium',
+    elite: 'elite',
+    prestige: 'prestige',
+    // already-correct values pass through
+    basic: 'basic',
+    standard: 'standard',
+};
+
+function normaliseTier(raw: string): MembershipTier {
+    const key = raw.toLowerCase();
+    return TIER_NAME_MAP[key] ?? 'basic';
+}
+
 // ─── Get User's Current Membership ───────────────────────────────────────────
 export async function getCurrentMembership(): Promise<ApiResponse<GetMembershipResponse>> {
-    // Always use mock data until backend is ready
-    return mockDelay({
+    const res = await apiClient.get<{ current_tier: string; next_tier: string; progress: string }>('/membership');
+    const currentTier = normaliseTier(res.data.current_tier || 'basic');
+    return {
         success: true,
         data: {
-            currentTier: 'standard',
+            currentTier,
             membershipData: {
-                currentTier: 'standard',
+                currentTier,
                 availableTiers: MOCK_MEMBERSHIP_TIERS,
                 upgradeRequirements: {
                     premium: { kycLevel: 1, paymentAmount: 99 },
@@ -221,10 +231,10 @@ export async function getCurrentMembership(): Promise<ApiResponse<GetMembershipR
             },
             upgradeEligibility: {
                 canUpgrade: true,
-                nextAvailableTier: 'premium',
+                nextAvailableTier: normaliseTier(res.data.next_tier || 'standard'),
             },
         },
-    });
+    };
 }
 
 // ─── Upgrade Membership ───────────────────────────────────────────────────────

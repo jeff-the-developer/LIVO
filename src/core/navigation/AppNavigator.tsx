@@ -20,7 +20,7 @@ const navTheme = {
 };
 
 // ⚠️ Set to true to skip auth during development — REMOVE before production
-const DEV_SKIP_AUTH = true;
+const DEV_SKIP_AUTH = false;
 
 export default function AppNavigator(): React.ReactElement {
     const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
