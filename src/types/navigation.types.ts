@@ -117,6 +117,18 @@ export type AppStackParamList = {
     AllTransactions: undefined;
     NotificationsList: undefined;
     QRScanner: undefined;
+    // Send tab sub-screens
+    DirectTransfer: undefined;
+    CryptoTransfer: undefined;
+    BankTransfer: undefined;
+    SendGifts: undefined;
+    GiftsHistory: undefined;
+    // Deposit sub-screens
+    Deposit: undefined;
+    CryptoReceive: undefined;
+    // Swap sub-screens
+    FXSwap: undefined;
+    SwapRecords: undefined;
 };
 
 // ─── Root ─────────────────────────────────────────────────────────────────────

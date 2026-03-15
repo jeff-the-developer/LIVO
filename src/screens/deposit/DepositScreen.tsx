@@ -11,26 +11,26 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
+    ArrowLeft01FreeIcons,
     UserAdd01FreeIcons,
     Blockchain01FreeIcons,
     Globe02FreeIcons,
-    GiftFreeIcons,
     Alert02FreeIcons,
     CancelCircleFreeIcons,
     Tick02FreeIcons,
 } from '@hugeicons/core-free-icons';
 import type { AppStackParamList } from '@app-types/navigation.types';
-import { colors, palette } from '@theme/colors';
+import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import BottomSheet from '@components/common/BottomSheet';
 import { useKYCStatus } from '@hooks/api/useKYC';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
-type SendMethod = 'direct' | 'crypto' | 'bank';
+type DepositMethod = 'direct' | 'crypto' | 'cash';
 
 interface MethodCard {
-    id: SendMethod;
+    id: DepositMethod;
     title: string;
     subtitle: string;
     icon: any;
@@ -40,19 +40,19 @@ const METHODS: MethodCard[] = [
     {
         id: 'direct',
         title: 'Direct Transfer',
-        subtitle: 'Send to another LIVOPay account instantly',
+        subtitle: 'Receive from another LIVOPay account',
         icon: UserAdd01FreeIcons,
     },
     {
         id: 'crypto',
-        title: 'Crypto Transfer',
-        subtitle: 'Send crypto to a wallet address',
+        title: 'Crypto Deposit',
+        subtitle: 'Deposit from exchange/crypto wallet',
         icon: Blockchain01FreeIcons,
     },
     {
-        id: 'bank',
-        title: 'Bank/Wire Transfer',
-        subtitle: 'Send cash to another bank account',
+        id: 'cash',
+        title: 'Cash Deposit',
+        subtitle: 'Deposit from bank/ewallet account',
         icon: Globe02FreeIcons,
     },
 ];
@@ -63,11 +63,11 @@ const IMPORTANT_NOTES = [
     'Transfer cannot be recalled once executed',
 ];
 
-export default function SendScreen(): React.ReactElement {
+export default function DepositScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
     const kycStatus = useKYCStatus();
 
-    const [selectedMethod, setSelectedMethod] = useState<SendMethod | null>(null);
+    const [selectedMethod, setSelectedMethod] = useState<DepositMethod | null>(null);
     const [notesSheetVisible, setNotesSheetVisible] = useState(false);
     const [deniedSheetVisible, setDeniedSheetVisible] = useState(false);
     const [checkedNotes, setCheckedNotes] = useState<boolean[]>([false, false, false]);
@@ -97,16 +97,12 @@ export default function SendScreen(): React.ReactElement {
             return;
         }
 
-        if (selectedMethod === 'crypto') {
-            navigation.navigate('CryptoTransfer');
-        } else {
-            navigation.navigate('BankTransfer');
-        }
+        navigation.navigate('CryptoReceive');
     }, [selectedMethod, kycStatus.data, navigation]);
 
     const handleUnderstand = useCallback(() => {
         setNotesSheetVisible(false);
-        navigation.navigate('DirectTransfer');
+        navigation.navigate('CryptoReceive');
     }, [navigation]);
 
     const handleCompleteVerification = useCallback(() => {
@@ -117,7 +113,16 @@ export default function SendScreen(): React.ReactElement {
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Send</Text>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    activeOpacity={0.7}
+                    onPress={() => navigation.goBack()}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                >
+                    <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={22} color="#242424" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Deposit</Text>
+                <View style={styles.headerSpacer} />
             </View>
 
             <ScrollView
@@ -150,21 +155,6 @@ export default function SendScreen(): React.ReactElement {
                         );
                     })}
                 </View>
-
-                {/* Gifts Banner */}
-                <TouchableOpacity style={styles.giftBanner} activeOpacity={0.8} onPress={() => navigation.navigate('SendGifts')}>
-                    <View style={styles.giftGreenStrip} />
-                    <View style={styles.giftIconCircle}>
-                        <HugeiconsIcon icon={GiftFreeIcons} size={28} color="#242424" />
-                    </View>
-                    <View style={styles.giftTextWrap}>
-                        <Text style={styles.giftTitle}>Gifts</Text>
-                        <Text style={styles.giftSubtitle}>Create & send gifts to friends</Text>
-                    </View>
-                    <View style={styles.giftPill}>
-                        <Text style={styles.giftPillText}>Invite New Friends by Sending Gifts</Text>
-                    </View>
-                </TouchableOpacity>
             </ScrollView>
 
             {/* Next Button */}
@@ -261,14 +251,27 @@ const styles = StyleSheet.create({
         backgroundColor: colors.background,
     },
     header: {
+        flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
+        paddingHorizontal: 15,
+    },
+    backButton: {
+        width: 32,
+        height: 32,
+        justifyContent: 'center',
+        alignItems: 'flex-start',
     },
     headerTitle: {
+        flex: 1,
         fontSize: 16,
         fontWeight: '600',
         color: '#242424',
         lineHeight: 24,
+        textAlign: 'center',
+    },
+    headerSpacer: {
+        width: 32,
     },
     scroll: {
         flex: 1,
@@ -320,65 +323,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#D9F7E3',
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    // Gift Banner
-    giftBanner: {
-        borderRadius: 17,
-        borderWidth: 1,
-        borderColor: '#E9E9E9',
-        paddingTop: 17,
-        paddingHorizontal: 3,
-        paddingBottom: 20,
-        marginTop: 12,
-        alignItems: 'center',
-        overflow: 'hidden',
-    },
-    giftGreenStrip: {
-        width: '100%',
-        height: 100,
-        backgroundColor: '#D9F7E3',
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        marginBottom: -50,
-    },
-    giftIconCircle: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#FFFFFF',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 10,
-        zIndex: 1,
-    },
-    giftTextWrap: {
-        alignItems: 'center',
-        gap: 9,
-        marginBottom: 24,
-    },
-    giftTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#242424',
-        lineHeight: 24,
-    },
-    giftSubtitle: {
-        fontSize: 16,
-        fontWeight: '400',
-        color: '#242424',
-        lineHeight: 24,
-    },
-    giftPill: {
-        backgroundColor: '#E8E8E8',
-        borderRadius: 521,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-    },
-    giftPillText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#242424',
-        lineHeight: 21,
     },
     // Bottom Bar
     bottomBar: {

@@ -49,6 +49,78 @@ import SetPasswordScreen from '@screens/auth/SetPasswordScreen';
 import AccountTypeScreen from '@screens/auth/AccountTypeScreen';
 import PINSetupScreen from '@screens/auth/PINSetupScreen';
 import BiometricSetupScreen from '@screens/auth/BiometricSetupScreen';
+import NotifTransactionsScreen from '@screens/profile/NotifTransactionsScreen';
+import NotifAccountActivitiesScreen from '@screens/profile/NotifAccountActivitiesScreen';
+import NotifMiscellaneousScreen from '@screens/profile/NotifMiscellaneousScreen';
+import AssetDetailScreen from '@screens/home/AssetDetailScreen';
+import NotificationsListScreen from '@screens/home/NotificationsListScreen';
+import QRScannerScreen from '@screens/home/QRScannerScreen';
+import DirectTransferScreen from '@screens/send/DirectTransferScreen';
+import CryptoTransferScreen from '@screens/send/CryptoTransferScreen';
+import BankTransferScreen from '@screens/send/BankTransferScreen';
+import SendGiftsScreen from '@screens/send/SendGiftsScreen';
+import GiftsHistoryScreen from '@screens/send/GiftsHistoryScreen';
+import DepositScreen from '@screens/deposit/DepositScreen';
+import CryptoReceiveScreen from '@screens/deposit/CryptoReceiveScreen';
+import SwapScreen from '@screens/swap/SwapScreen';
+import SwapRecordsScreen from '@screens/swap/SwapRecordsScreen';
+import { View, Text } from 'react-native';
+
+// Placeholder screens for Home tab navigation (implemented in future plans)
+const PlaceholderScreen = ({ route }: { route: { name: string } }) => (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <Text>{route.name} - Coming Soon</Text>
+    </View>
+);
+
+const Stack = createNativeStackNavigator<AppStackParamList>();
+
+export default function AppStack(): React.ReactElement {
+    return (
+        <Stack.Navigator
+            screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+                animation: 'slide_from_right',
+                gestureEnabled: true,
+            }}
+        >
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="AvatarPicture" component={AvatarPictureScreen} />
+            <Stack.Screen name="EditMobile" component={EditMobileScreen} />
+            <Stack.Screen name="EditEmail" component={EditEmailScreen} />
+            <Stack.Screen name="Verification" component={VerificationScreen} />
+            <Stack.Screen name="IdentityVerification" component={IdentityVerificationScreen} />
+            <Stack.Screen name="KYC1Verify" component={KYC1VerifyScreen} />
+            <Stack.Screen name="KYC2Verify" component={KYC2VerifyScreen} />
+            <Stack.Screen name="KYC3Verify" component={KYC3VerifyScreen} />
+            <Stack.Screen name="MyAddress" component={MyAddressScreen} />
+            <Stack.Screen name="StatusUpgrade" component={StatusUpgradeScreen} />
+            <Stack.Screen name="MyCoupons" component={MyCouponsScreen} />
+            <Stack.Screen name="Events" component={EventsScreen} />
+            <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="AppearanceDisplay" component={AppearanceDisplayScreen} />
+            <Stack.Screen name="InviteFriends" component={InviteFriendsScreen} />
+            <Stack.Screen name="MyInvites" component={MyInvitesScreen} />
+            <Stack.Screen name="ClientSupport" component={ClientSupportScreen} />
+            <Stack.Screen name="SupportChat" component={SupportChatScreen} />
+            <Stack.Screen name="AboutLIVOPay" component={AboutLIVOPayScreen} />
+            <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+            <Stack.Screen name="SecurityEmail" component={SecurityEmailScreen} />
+            <Stack.Screen name="SecurityMobile" component={SecurityMobileScreen} />
+            <Stack.Screen name="Authenticator" component={AuthenticatorScreen} />
+            <Stack.Screen name="SecureKey" component={SecureKeyScreen} />
+            <Stack.Screen name="LoginPassword" component={LoginPasswordScreen} />
+            <Stack.Screen name="MyActivity" component={MyActivityScreen} />
+            <Stack.Screen name="MyDevice" component={MyDeviceScreen} />
+            <Stack.Screen name="WithdrawalSettings" component={WithdrawalSettingsScreen} />
+            <Stack.Screen name="AntiPhishing" component={AntiPhishingScreen} />
+            <Stack.Screen name="BiometricVerify" component={BiometricVerifyScreen} />
+            <Stack.Screen name="PrimaryNationality" component={PrimaryNationalityScreen} />
+            <Stack.Screen name="LivoBusiness" component={LivoBusinessScreen} />
+            <Stack.Screen name="SwitchAccount" component={SwitchAccountScreen} />
             <Stack.Screen name="NotifTransactions" component={NotifTransactionsScreen} />
             <Stack.Screen name="NotifAccountActivities" component={NotifAccountActivitiesScreen} />
             <Stack.Screen name="NotifMiscellaneous" component={NotifMiscellaneousScreen} />
@@ -59,6 +131,18 @@ import BiometricSetupScreen from '@screens/auth/BiometricSetupScreen';
             <Stack.Screen name="AllTransactions" component={PlaceholderScreen as any} />
             <Stack.Screen name="NotificationsList" component={NotificationsListScreen} />
             <Stack.Screen name="QRScanner" component={QRScannerScreen} />
+            {/* Send tab sub-screens (placeholders) */}
+            <Stack.Screen name="DirectTransfer" component={DirectTransferScreen} />
+            <Stack.Screen name="CryptoTransfer" component={CryptoTransferScreen} />
+            <Stack.Screen name="BankTransfer" component={BankTransferScreen} />
+            <Stack.Screen name="SendGifts" component={SendGiftsScreen} />
+            <Stack.Screen name="GiftsHistory" component={GiftsHistoryScreen} />
+            {/* Deposit sub-screens */}
+            <Stack.Screen name="Deposit" component={DepositScreen} />
+            <Stack.Screen name="CryptoReceive" component={CryptoReceiveScreen} />
+            {/* Swap sub-screens */}
+            <Stack.Screen name="FXSwap" component={SwapScreen} />
+            <Stack.Screen name="SwapRecords" component={SwapRecordsScreen} />
         </Stack.Navigator>
     );
 }
