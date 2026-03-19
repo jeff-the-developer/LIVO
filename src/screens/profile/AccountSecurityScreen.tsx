@@ -14,16 +14,18 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
     ArrowLeft01FreeIcons,
     ArrowRight01FreeIcons,
-    SecurityCheckFreeIcons,
-    SmartPhone01FreeIcons,
-    Mail01FreeIcons,
-    Key01FreeIcons,
-    SquareLock02FreeIcons,
-    Activity01FreeIcons,
-    LaptopPhoneSyncFreeIcons,
-    Settings01FreeIcons,
-    ShieldFreeIcons,
 } from '@hugeicons/core-free-icons';
+import {
+    AuthenticatorIcon,
+    MobileIcon,
+    EmailSecurityIcon,
+    SecureKeyIcon,
+    LoginPasswordIcon,
+    ActivityIcon,
+    DeviceManagementIcon,
+    WithdrawalSettingsIcon,
+    AntiPhishingIcon,
+} from '@components/icons/SecurityIcons';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { typography } from '@theme/typography';
@@ -33,13 +35,13 @@ type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 // ─── Menu Row ─────────────────────────────────────────────────────────────────
 function MenuRow({
-    icon,
+    icon: IconComponent,
     label,
     status,
     onPress,
     testID,
 }: {
-    icon: Parameters<typeof HugeiconsIcon>[0]['icon'];
+    icon: React.ComponentType<{ size?: number; color?: string }>;
     label: string;
     status?: string;
     onPress: () => void;
@@ -52,7 +54,7 @@ function MenuRow({
             activeOpacity={0.7}
             testID={testID}
         >
-            <HugeiconsIcon icon={icon} size={22} color={colors.textPrimary} />
+            <IconComponent size={22} color={colors.textPrimary} />
             <Text style={s.rowLabel}>{label}</Text>
             {status && <Text style={s.rowStatus}>{status}</Text>}
             <HugeiconsIcon icon={ArrowRight01FreeIcons} size={18} color={colors.textMuted} />
@@ -96,7 +98,7 @@ export default function AccountSecurityScreen(): React.ReactElement {
                 {/* ─── Group 1: Authentication ─────────────────────── */}
                 <View style={s.group}>
                     <MenuRow
-                        icon={SecurityCheckFreeIcons}
+                        icon={AuthenticatorIcon}
                         label="Authenticator"
                         status="Not Linked"
                         onPress={() => navigation.navigate('Authenticator')}
@@ -104,7 +106,7 @@ export default function AccountSecurityScreen(): React.ReactElement {
                     />
                     <Divider />
                     <MenuRow
-                        icon={SmartPhone01FreeIcons}
+                        icon={MobileIcon}
                         label="Mobile"
                         status="Not Linked"
                         onPress={() => navigation.navigate('SecurityMobile')}
@@ -112,7 +114,7 @@ export default function AccountSecurityScreen(): React.ReactElement {
                     />
                     <Divider />
                     <MenuRow
-                        icon={Mail01FreeIcons}
+                        icon={EmailSecurityIcon}
                         label="Email"
                         status="Linked"
                         onPress={() => navigation.navigate('SecurityEmail')}
@@ -120,7 +122,7 @@ export default function AccountSecurityScreen(): React.ReactElement {
                     />
                     <Divider />
                     <MenuRow
-                        icon={Key01FreeIcons}
+                        icon={SecureKeyIcon}
                         label="Secure Key"
                         status="Set"
                         onPress={() => navigation.navigate('SecureKey')}
@@ -133,21 +135,21 @@ export default function AccountSecurityScreen(): React.ReactElement {
                 {/* ─── Group 2: Password & Activity ────────────────── */}
                 <View style={s.group}>
                     <MenuRow
-                        icon={SquareLock02FreeIcons}
+                        icon={LoginPasswordIcon}
                         label="Login Password"
                         onPress={() => navigation.navigate('LoginPassword')}
                         testID="security-password"
                     />
                     <Divider />
                     <MenuRow
-                        icon={Activity01FreeIcons}
+                        icon={ActivityIcon}
                         label="My Activity"
                         onPress={() => navigation.navigate('MyActivity')}
                         testID="security-activity"
                     />
                     <Divider />
                     <MenuRow
-                        icon={LaptopPhoneSyncFreeIcons}
+                        icon={WithdrawalSettingsIcon}
                         label="Device Management"
                         onPress={() => navigation.navigate('MyDevice')}
                         testID="security-devices"
@@ -159,14 +161,14 @@ export default function AccountSecurityScreen(): React.ReactElement {
                 {/* ─── Group 3: Other Security ─────────────────────── */}
                 <View style={s.group}>
                     <MenuRow
-                        icon={Settings01FreeIcons}
+                        icon={DeviceManagementIcon}
                         label="Withdrawal Settings"
                         onPress={() => navigation.navigate('WithdrawalSettings')}
                         testID="security-withdrawal"
                     />
                     <Divider />
                     <MenuRow
-                        icon={ShieldFreeIcons}
+                        icon={AntiPhishingIcon}
                         label="Anti-Phishing Code"
                         onPress={() => navigation.navigate('AntiPhishing')}
                         testID="security-phishing"

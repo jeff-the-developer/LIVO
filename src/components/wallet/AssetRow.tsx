@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { CurrencyIcon } from '@components/icons/CurrencyIcons';
 
 interface AssetRowProps {
     symbol: string;
@@ -8,24 +9,9 @@ interface AssetRowProps {
     change24h: string;
     balance: string;
     usdValue: string;
-    iconUrl: string;
+    iconUrl?: string;
     isHidden: boolean;
     onPress?: () => void;
-}
-
-const CURRENCY_FLAGS: Record<string, string> = {
-    USD: 'US', HKD: 'HK', CNY: 'CN', AUD: 'AU', CAD: 'CA',
-    CHF: 'CH', EUR: 'EU', GBP: 'GB', JPY: 'JP', SGD: 'SG',
-};
-
-function getFlagEmoji(symbol: string): string {
-    const code = CURRENCY_FLAGS[symbol];
-    if (!code) return symbol.slice(0, 2);
-    return code
-        .toUpperCase()
-        .split('')
-        .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
-        .join('');
 }
 
 export default function AssetRow({
@@ -47,11 +33,7 @@ export default function AssetRow({
         <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.6} disabled={!onPress}>
             {/* Icon */}
             <View style={styles.iconWrap}>
-                {iconUrl ? (
-                    <Image source={{ uri: iconUrl }} style={styles.icon} />
-                ) : (
-                    <Text style={styles.flagText}>{getFlagEmoji(symbol)}</Text>
-                )}
+                <CurrencyIcon symbol={symbol} size={40} />
             </View>
 
             {/* Content */}
@@ -102,14 +84,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
-    },
-    icon: {
-        width: 55,
-        height: 55,
-        borderRadius: 100,
-    },
-    flagText: {
-        fontSize: 34,
     },
     content: {
         flex: 1,

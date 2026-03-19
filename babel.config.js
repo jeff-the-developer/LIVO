@@ -24,9 +24,8 @@ module.exports = function (api) {
                     },
                 },
             ],
-            // NOTE: react-native-reanimated/plugin removed for Phase 0 —
-            // it requires the unpublished 'react-native-worklets' package.
-            // Re-add when implementing animation components in Phase 1.
+            'react-native-worklets-core/plugin',
+            'react-native-reanimated/plugin',
         ],
     };
 };

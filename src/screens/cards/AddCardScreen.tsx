@@ -18,8 +18,8 @@ import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
     ArrowLeft01FreeIcons,
     ArrowRight01FreeIcons,
-    Tick02FreeIcons,
     Cancel01FreeIcons,
+    Tick02FreeIcons,
 } from '@hugeicons/core-free-icons';
 import { colors, palette } from '@theme/colors';
 import { spacing } from '@theme/spacing';
@@ -30,11 +30,19 @@ import type { CardCurrency, BillingAddress } from '@api/cards';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import BottomSheet from '@components/common/BottomSheet';
 import CardCouponSheet from './CardCouponSheet';
-import type { CardCouponSelection } from './CardCouponSheet';
+import type { CardCouponSelection, CardTier } from './CardCouponSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 const NOTE_MAX_LENGTH = 8;
+
+const CARD_IMAGES: Record<CardTier, any> = {
+    Basic: require('@assets/images/cards/basic_card.png'),
+    Standard: require('@assets/images/cards/standard_card.png'),
+    Premium: require('@assets/images/cards/premium_card.png'),
+    Elite: require('@assets/images/cards/elite_card.png'),
+    Prestige: require('@assets/images/cards/prestige_card.png'),
+};
 
 // ─── Card Currency Sheet ──────────────────────────────────────────────────────
 function CardCurrencySheet({
@@ -91,7 +99,9 @@ function CardCurrencySheet({
                     >
                         <Text style={csStyles.optionLabel}>{c}</Text>
                         <View style={[csStyles.radio, tempSelected === c && csStyles.radioSelected]}>
-                            {tempSelected === c && <View style={csStyles.radioInner} />}
+                            {tempSelected === c && (
+                                <HugeiconsIcon icon={Tick02FreeIcons} size={14} color="#FFFFFF" />
+                            )}
                         </View>
                     </TouchableOpacity>
                 ))}
@@ -233,15 +243,17 @@ export default function AddCardScreen(): React.ReactElement {
                     {appliedCoupon && (
                         <View style={s.couponBanner}>
                             <Image
-                                source={require('@assets/images/cards/basic_card.png')}
+                                source={CARD_IMAGES[appliedCoupon.tier]}
                                 style={s.couponBannerCard}
                                 resizeMode="contain"
                             />
                             <View style={s.couponBannerInfo}>
-                                <Text style={s.couponBannerTier}>
-                                    <Text style={s.couponBannerTierBold}>BASIC Card</Text>
-                                    <Text style={s.couponBannerTierLight}>{' | VISA US Dollar Standard Card'}</Text>
-                                </Text>
+                                <View style={s.couponBannerTierWrap}>
+                                    <Text style={s.couponBannerTier}>
+                                        <Text style={s.couponBannerTierBold}>{appliedCoupon.tier.toUpperCase()} Card</Text>
+                                        <Text style={s.couponBannerTierLight}>{' | VISA US Dollar Standard Card'}</Text>
+                                    </Text>
+                                </View>
                                 <View style={s.couponBannerFooter}>
                                     <Text style={s.couponBannerNote}>
                                         If you cancel the redemption now, the coupon will not be used
@@ -649,32 +661,34 @@ const s = StyleSheet.create({
 
     // Coupon Banner
     couponBanner: {
-        backgroundColor: '#F7F7F9',
+        backgroundColor: '#F5F5F5',
         borderRadius: borderRadius.card * 1.5,
         padding: 16,
         marginBottom: spacing.xxl,
         marginTop: spacing.xs,
-        borderWidth: 1,
-        borderColor: colors.border,
     },
     couponBannerCard: {
         width: '100%',
-        height: 180,
+        height: 210,
         marginBottom: spacing.lg,
     },
     couponBannerInfo: {},
+    couponBannerTierWrap: {
+        borderBottomWidth: 1,
+        borderBottomColor: '#EBEBEB',
+        paddingBottom: spacing.md,
+        marginBottom: spacing.md,
+    },
     couponBannerTier: {
         ...typography.bodyLg,
         color: colors.textPrimary,
-        marginBottom: spacing.xl,
     },
     couponBannerTierBold: {
         fontWeight: '800',
         color: colors.textPrimary,
     },
     couponBannerTierLight: {
-        ...typography.bodyMd,
-        fontWeight: '500',
+        fontWeight: '400',
         color: colors.textSecondary,
     },
     couponBannerFooter: {
@@ -687,7 +701,7 @@ const s = StyleSheet.create({
         flex: 1,
         ...typography.bodySm,
         color: colors.textSecondary,
-        lineHeight: 20,
+        lineHeight: 18,
     },
     couponCancelBtn: {
         backgroundColor: '#FF5A5F',
@@ -748,13 +762,8 @@ const csStyles = StyleSheet.create({
         justifyContent: 'center',
     },
     radioSelected: {
-        borderColor: colors.textPrimary,
-    },
-    radioInner: {
-        width: 12,
-        height: 12,
-        borderRadius: 2,
         backgroundColor: colors.textPrimary,
+        borderColor: colors.textPrimary,
     },
     nextBtn: {
         backgroundColor: colors.surface,

@@ -16,8 +16,10 @@ import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import { useKYCStatus } from '@hooks/api/useKYC';
+import { useCards } from '@hooks/api/useCards';
 import BottomSheet from '@components/common/BottomSheet';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import CardDashboardScreen from './CardDashboardScreen';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -28,7 +30,12 @@ const heroImage = require('@assets/images/cards/cards_stack_v2.png');
 export default function CardsScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
   const { data: kycStatus } = useKYCStatus();
+  const { data: cards } = useCards();
   const [showRestricted, setShowRestricted] = useState(false);
+
+  // If user has cards, show the dashboard
+  const hasCards = (cards ?? []).length > 0;
+  if (hasCards) return <CardDashboardScreen />;
 
   const isKYC1Verified = (kycStatus?.level ?? 0) >= 1;
 

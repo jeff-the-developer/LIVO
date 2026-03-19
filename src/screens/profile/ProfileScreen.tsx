@@ -128,8 +128,8 @@ export default function ProfileScreen(): React.ReactElement {
           </TouchableOpacity>
         </View>
 
-        {/* ─── KYC Status Banner ─────────────────────────────────────────── */}
-        {kycStatus && !kycLoading && (
+        {/* KYC Status Banner — only show if verification is pending or rejected (not when approved) */}
+        {kycStatus && !kycLoading && kycStatus.status !== 'approved' && (
           <KYCStatusBanner
             level={kycStatus.level}
             status={kycStatus.status}

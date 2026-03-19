@@ -23,8 +23,11 @@ import type { Coupon } from '@api/coupons';
 import BottomSheet from '@components/common/BottomSheet';
 
 // ─── Card Coupon Info (for detail view) ───────────────────────────────────────
+export type CardTier = 'Basic' | 'Standard' | 'Premium' | 'Elite' | 'Prestige';
+
 export interface CardCouponSelection {
     coupon: Coupon;
+    tier: CardTier;
     /** Derived display line, e.g. "Obtain a LIVOPay Standard card" */
     subtitle: string;
     /** Full description for detail sheet */
@@ -45,7 +48,7 @@ export default function CardCouponSheet({
     onSelectCoupon,
 }: Props): React.ReactElement {
     const { data: coupons } = useCoupons();
-    const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+    const [selectedCoupon, setSelectedCoupon] = useState<{ coupon: Coupon; tier: CardTier } | null>(null);
 
     // Filter to only active, card-related coupons
     const cardCoupons = (coupons ?? []).filter(
@@ -61,17 +64,19 @@ export default function CardCouponSheet({
             day: '2-digit',
         });
 
-    const handleCouponTap = (coupon: Coupon) => {
-        setSelectedCoupon(coupon);
+    const handleCouponTap = (coupon: Coupon, tier: CardTier) => {
+        setSelectedCoupon({ coupon, tier });
     };
 
     const handleConfirm = () => {
         if (!selectedCoupon) return;
+        const { coupon, tier } = selectedCoupon;
         const selection: CardCouponSelection = {
-            coupon: selectedCoupon,
-            subtitle: 'Obtain a LIVOPay Standard card',
+            coupon,
+            tier,
+            subtitle: `Obtain a LIVOPay ${tier} card`,
             detailDescription:
-                'This voucher can be redeemed for one Mastercard LIVOPay Standard card. Available issuing regions are Hong Kong, Singapore, and the United Kingdom.',
+                `This voucher can be redeemed for one Mastercard LIVOPay ${tier} card.Available issuing regions are Hong Kong, Singapore, and the United Kingdom.`,
         };
         onSelectCoupon(selection);
         setSelectedCoupon(null);
@@ -131,7 +136,7 @@ export default function CardCouponSheet({
                                 />
                             </View>
                             <Text style={s.metaText}>
-                                Valid until {formatDate(selectedCoupon.expires_at)}
+                                Valid until {formatDate(selectedCoupon.coupon.expires_at)}
                             </Text>
                         </View>
                         <View style={s.metaRow}>
@@ -177,7 +182,11 @@ export default function CardCouponSheet({
 
                     {/* Gift icon */}
                     <View style={s.giftIconWrap}>
-                        <Text style={s.giftEmoji}>🎁</Text>
+                        <Image
+                            source={require('@assets/images/icons/coupon_gift.png')}
+                            style={s.giftImage}
+                            resizeMode="contain"
+                        />
                     </View>
 
                     <Text style={s.listTitle}>
@@ -189,57 +198,60 @@ export default function CardCouponSheet({
                             style={s.listScroll}
                             showsVerticalScrollIndicator={false}
                         >
-                            {cardCoupons.map((coupon) => (
-                                <TouchableOpacity
-                                    key={coupon.id}
-                                    style={s.couponCard}
-                                    onPress={() => handleCouponTap(coupon)}
-                                    activeOpacity={0.7}
-                                    accessibilityLabel={`Coupon: ${coupon.title}`}
-                                    testID={`card-coupon-${coupon.id}`}
-                                >
-                                    <View style={s.couponContent}>
-                                        <Text style={s.couponTitle} numberOfLines={1}>
-                                            Card redemption coupon
-                                        </Text>
-                                        <Text style={s.couponSubtitle} numberOfLines={1}>
-                                            Obtain a LIVOPay Standard card
-                                        </Text>
-
-                                        <View style={s.metaRow}>
-                                            <View style={s.metaIconCircle}>
-                                                <HugeiconsIcon
-                                                    icon={Calendar01FreeIcons}
-                                                    size={12}
-                                                    color={colors.textPrimary}
-                                                />
-                                            </View>
-                                            <Text style={s.metaText}>
-                                                Valid until {formatDate(coupon.expires_at)}
+                            {cardCoupons.map((coupon, index) => {
+                                const tier: CardTier = index % 2 === 0 ? 'Basic' : 'Standard';
+                                return (
+                                    <TouchableOpacity
+                                        key={coupon.id}
+                                        style={s.couponCard}
+                                        onPress={() => handleCouponTap(coupon, tier)}
+                                        activeOpacity={0.7}
+                                        accessibilityLabel={`Coupon: ${coupon.title} `}
+                                        testID={`card - coupon - ${coupon.id} `}
+                                    >
+                                        <View style={s.couponContent}>
+                                            <Text style={s.couponTitle} numberOfLines={1}>
+                                                Card redemption coupon
                                             </Text>
-                                        </View>
+                                            <Text style={s.couponSubtitle} numberOfLines={1}>
+                                                Obtain a LIVOPay {tier} card
+                                            </Text>
 
-                                        <View style={s.metaRow}>
-                                            <View style={s.metaIconCircle}>
-                                                <HugeiconsIcon
-                                                    icon={InformationCircleFreeIcons}
-                                                    size={12}
-                                                    color={colors.textPrimary}
-                                                />
+                                            <View style={s.metaRow}>
+                                                <View style={s.metaIconCircle}>
+                                                    <HugeiconsIcon
+                                                        icon={Calendar01FreeIcons}
+                                                        size={12}
+                                                        color={colors.textPrimary}
+                                                    />
+                                                </View>
+                                                <Text style={s.metaText}>
+                                                    Valid until {formatDate(coupon.expires_at)}
+                                                </Text>
                                             </View>
-                                            <Text style={s.metaText}>Not transferable</Text>
-                                        </View>
-                                    </View>
 
-                                    <View style={s.couponImageWrap}>
-                                        <Image
-                                            source={require('@assets/images/coupons/Frame 120.png')}
-                                            style={s.couponImage}
-                                            resizeMode="contain"
-                                        />
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
+                                            <View style={s.metaRow}>
+                                                <View style={s.metaIconCircle}>
+                                                    <HugeiconsIcon
+                                                        icon={InformationCircleFreeIcons}
+                                                        size={12}
+                                                        color={colors.textPrimary}
+                                                    />
+                                                </View>
+                                                <Text style={s.metaText}>Not transferable</Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={s.couponImageWrap}>
+                                            <Image
+                                                source={require('@assets/images/coupons/Frame 120.png')}
+                                                style={s.couponImage}
+                                                resizeMode="contain"
+                                            />
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </ScrollView>
                     )}
                 </View>
@@ -255,17 +267,15 @@ const s = StyleSheet.create({
         paddingBottom: spacing.base,
     },
     giftIconWrap: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: colors.primaryLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: spacing.lg,
-        marginBottom: spacing.base,
+        width: 64,
+        height: 64,
+        alignSelf: 'flex-start',
+        marginTop: spacing.md,
+        marginBottom: spacing.md,
     },
-    giftEmoji: {
-        fontSize: 24,
+    giftImage: {
+        width: '100%',
+        height: '100%',
     },
     listTitle: {
         ...typography.h2,

@@ -1,5 +1,5 @@
 export const ENV = {
-    BASE_URL: 'http://192.168.1.5:8080',
+    BASE_URL: 'http://192.168.68.101:8080',
     MOCK_MODE: false,
     ENVIRONMENT: 'development',
 } as const;
