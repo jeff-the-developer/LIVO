@@ -30,3 +30,17 @@ To align with standard production-ready architectures, we strongly request the b
    - This allows the frontend's `AppStack` router to programmatically trap new users in the onboarding funnel (`CreateUsernameScreen` -> `PINSetupScreen`) if they kill the app during registration and restart it later. Currently, we only check if `username` is empty.
 
 Implementing these changes will guarantee high data integrity, eliminate garbage user accounts, and allow the frontend to safely enforce mandatory onboarding stages consistently.
+
+---
+
+## Frontend implementation status (Livo_FrontEnd)
+
+The app is updated to align with the **`pin_enabled`** recommendation and resilient onboarding:
+
+- **`User.pin_enabled`** is read from login / `GET /user/profile` and persisted with the session.
+- **`needsAuthOnboarding()`** treats **`pin_enabled === false`** (explicit) as “must complete PIN”, and **missing username** as “must choose username”. Undefined `pin_enabled` is treated as legacy / complete so existing users are not forced through PIN again.
+- **`OnboardingGate`** (auth stack) runs after app restart when the user is logged in but onboarding is incomplete, routing to **CreateUsername** or **PINSetup** as appropriate.
+- **Register → verify → set password → login** no longer assumes **`user_id` from `POST /auth/register`**; verify response may include **`user_id`** (forwarded to **SetPassword** when present).
+- **Create username → PIN setup** is the mandatory happy path; skipping PIN to the main app was removed.
+
+Backend should still implement **Redis-backed register** and **`pin_enabled`** on auth/profile payloads as described above.

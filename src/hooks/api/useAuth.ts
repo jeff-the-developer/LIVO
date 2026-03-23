@@ -118,8 +118,16 @@ export function useForgotPassword() {
 
 // ─── Setup PIN ────────────────────────────────────────────────────────────────
 export function useSetupPIN() {
+    const setUser = useAuthStore((s) => s.setUser);
+
     return useMutation({
         mutationFn: (payload: { pin: string }) => setupPIN(payload),
+        onSuccess: () => {
+            const u = useAuthStore.getState().user;
+            if (u) {
+                setUser({ ...u, pin_enabled: true });
+            }
+        },
     });
 }
 

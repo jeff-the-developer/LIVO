@@ -29,28 +29,13 @@ import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
 import { useDisplaySettings } from '@hooks/useDisplaySettings';
-import { useWalletAsset } from '@hooks/api/useWallet';
-import { useTransactions } from '@hooks/api/useTransactions';
-import TransactionRow from '@components/transactions/TransactionRow';
+import { useWalletAsset, useWalletLedger } from '@hooks/api/useWallet';
 import BalanceFilterSheet from '@components/wallet/BalanceFilterSheet';
+import { CurrencyIcon } from '@components/icons/CurrencyIcons';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'AssetDetail'>;
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 type TabId = 'overview' | 'transactions';
-
-const CURRENCY_FLAGS: Record<string, string> = {
-    USD: 'US', HKD: 'HK', CNY: 'CN', AUD: 'AU', CAD: 'CA',
-    CHF: 'CH', EUR: 'EU', GBP: 'GB', JPY: 'JP', SGD: 'SG',
-};
-
-function getFlagEmoji(symbol: string): string {
-    const code = CURRENCY_FLAGS[symbol] ?? 'US';
-    return code
-        .toUpperCase()
-        .split('')
-        .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
-        .join('');
-}
 
 export default function AssetDetailScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
@@ -62,32 +47,28 @@ export default function AssetDetailScreen(): React.ReactElement {
     const [activeTab, setActiveTab] = useState<TabId>('overview');
     const [balanceSheetVisible, setBalanceSheetVisible] = useState(false);
     const [txSortOrder, setTxSortOrder] = useState<'desc' | 'asc'>('desc');
-    const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'deposit' | 'withdrawal' | 'transfer' | 'swap'>('all');
+    const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'credit' | 'debit'>('all');
     const [displayMode, setDisplayMode] = useState<'available' | 'total'>('available');
 
     const asset = useWalletAsset(symbol);
-    const allTransactions = useTransactions({ page: 1, limit: 50 });
+    const ledger = useWalletLedger({ asset: symbol, page: 1, limit: 50 });
 
-    // Filter transactions to only show ones matching this asset's currency
-    const filteredTx = allTransactions.data?.transactions?.filter(
-        (tx) => tx.currency.toUpperCase() === symbol.toUpperCase(),
-    ) ?? [];
-
-    const sortedFilteredTx = useMemo(() => {
+    const sortedFilteredEntries = useMemo(() => {
+        const entries = ledger.data?.entries ?? [];
         const filtered = txTypeFilter === 'all'
-            ? filteredTx
-            : filteredTx.filter((tx) => tx.type === txTypeFilter);
+            ? entries
+            : entries.filter((e) => e.type === txTypeFilter);
         return [...filtered].sort((a, b) => {
-            const diff = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+            const diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
             return txSortOrder === 'desc' ? -diff : diff;
         });
-    }, [filteredTx, txSortOrder, txTypeFilter]);
+    }, [ledger.data?.entries, txSortOrder, txTypeFilter]);
 
     const cycleTxType = useCallback(() => {
         setTxTypeFilter((prev) => {
-            const cycle: Array<'all' | 'deposit' | 'withdrawal' | 'transfer' | 'swap'> = ['all', 'deposit', 'withdrawal', 'transfer', 'swap'];
-            const idx = cycle.indexOf(prev);
-            return cycle[(idx + 1) % cycle.length];
+            if (prev === 'all') return 'credit';
+            if (prev === 'credit') return 'debit';
+            return 'all';
         });
     }, []);
 
@@ -103,10 +84,10 @@ export default function AssetDetailScreen(): React.ReactElement {
 
     const onRefresh = useCallback(() => {
         asset.refetch();
-        if (activeTab === 'transactions') allTransactions.refetch();
-    }, [asset, allTransactions, activeTab]);
+        if (activeTab === 'transactions') ledger.refetch();
+    }, [asset, ledger, activeTab]);
 
-    const isRefreshing = asset.isRefetching || (activeTab === 'transactions' && allTransactions.isRefetching);
+    const isRefreshing = asset.isRefetching || (activeTab === 'transactions' && ledger.isRefetching);
 
     const formattedBalance = asset.data
         ? formatAmount(parseFloat(displayMode === 'total' ? asset.data.balance : asset.data.available))
@@ -141,7 +122,7 @@ export default function AssetDetailScreen(): React.ReactElement {
                                 style={styles.headerFlag}
                             />
                         ) : (
-                            <Text style={styles.headerFlagEmoji}>{getFlagEmoji(symbol)}</Text>
+                            <CurrencyIcon symbol={symbol} size={28} />
                         )}
                         <Text style={styles.headerTitle}>{assetName}</Text>
                     </View>
@@ -184,13 +165,13 @@ export default function AssetDetailScreen(): React.ReactElement {
 
                     {/* Quick Actions */}
                     <View style={styles.actionsRow}>
-                        <TouchableOpacity style={styles.actionItem} activeOpacity={0.7}>
+                        <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={() => navigation.navigate('Deposit')}>
                             <View style={styles.actionCircle}>
                                 <HugeiconsIcon icon={Add01FreeIcons} size={24} color="#242424" />
                             </View>
                             <Text style={styles.actionLabel}>Add</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionItem} activeOpacity={0.7}>
+                        <TouchableOpacity style={styles.actionItem} activeOpacity={0.7} onPress={() => navigation.navigate('FXSwap')}>
                             <View style={styles.actionCircle}>
                                 <HugeiconsIcon icon={ArrowDataTransferHorizontalFreeIcons} size={24} color="#242424" />
                             </View>
@@ -293,21 +274,28 @@ export default function AssetDetailScreen(): React.ReactElement {
                             </TouchableOpacity>
                         </View>
 
-                        {sortedFilteredTx.length ? (
+                        {sortedFilteredEntries.length ? (
                             <View style={styles.txList}>
-                                {sortedFilteredTx.map((tx) => (
-                                    <TransactionRow
-                                        key={tx.id}
-                                        type={tx.type}
-                                        from={tx.from}
-                                        to={tx.to}
-                                        amount={tx.amount}
-                                        currency={tx.currency}
-                                        timestamp={tx.timestamp}
-                                        status={tx.status}
-                                        isHidden={balanceHidden}
-                                        onPress={() => navigation.navigate('TransactionDetail', { id: tx.id })}
-                                    />
+                                {sortedFilteredEntries.map((entry) => (
+                                    <View key={entry.id} style={styles.ledgerRow}>
+                                        <View style={[styles.ledgerBadge, entry.type === 'credit' ? styles.ledgerBadgeCredit : styles.ledgerBadgeDebit]}>
+                                            <Text style={[styles.ledgerBadgeText, entry.type === 'credit' ? styles.ledgerBadgeTextCredit : styles.ledgerBadgeTextDebit]}>
+                                                {entry.type === 'credit' ? '+' : '-'}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.ledgerInfo}>
+                                            <Text style={styles.ledgerDescription} numberOfLines={1}>{entry.description || (entry.type === 'credit' ? 'Credit' : 'Debit')}</Text>
+                                            <Text style={styles.ledgerDate}>{new Date(entry.created_at).toLocaleString()}</Text>
+                                        </View>
+                                        <View style={styles.ledgerRight}>
+                                            <Text style={[styles.ledgerAmount, entry.type === 'credit' ? styles.ledgerAmountCredit : styles.ledgerAmountDebit]}>
+                                                {entry.type === 'credit' ? '+' : '-'}{balanceHidden ? '****' : entry.amount} {symbol}
+                                            </Text>
+                                            <Text style={styles.ledgerBalance}>
+                                                Bal: {balanceHidden ? '****' : entry.balance_after}
+                                            </Text>
+                                        </View>
+                                    </View>
                                 ))}
                             </View>
                         ) : (
@@ -316,7 +304,7 @@ export default function AssetDetailScreen(): React.ReactElement {
                                     <Text style={styles.emptyLogoText}>L</Text>
                                 </View>
                                 <Text style={styles.emptyText}>
-                                    {allTransactions.isLoading ? 'Loading...' : 'No Records'}
+                                    {ledger.isLoading ? 'Loading...' : 'No Records'}
                                 </Text>
                             </View>
                         )}
@@ -603,7 +591,75 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     txList: {
-        gap: 30,
+        gap: 0,
+    },
+    ledgerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+        gap: 12,
+    },
+    ledgerBadge: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    ledgerBadgeCredit: {
+        backgroundColor: '#D9F7E3',
+    },
+    ledgerBadgeDebit: {
+        backgroundColor: '#FFF0F0',
+    },
+    ledgerBadgeText: {
+        fontSize: 22,
+        fontWeight: '700',
+    },
+    ledgerBadgeTextCredit: {
+        color: '#01CA47',
+    },
+    ledgerBadgeTextDebit: {
+        color: '#FF5A5F',
+    },
+    ledgerInfo: {
+        flex: 1,
+        gap: 3,
+    },
+    ledgerDescription: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#242424',
+        lineHeight: 21,
+    },
+    ledgerDate: {
+        fontSize: 12,
+        fontWeight: '400',
+        color: '#B2B2B2',
+        lineHeight: 18,
+    },
+    ledgerRight: {
+        alignItems: 'flex-end',
+        gap: 3,
+    },
+    ledgerAmount: {
+        fontSize: 14,
+        fontWeight: '600',
+        lineHeight: 21,
+    },
+    ledgerAmountCredit: {
+        color: '#01CA47',
+    },
+    ledgerAmountDebit: {
+        color: '#FF5A5F',
+    },
+    ledgerBalance: {
+        fontSize: 11,
+        fontWeight: '400',
+        color: '#B2B2B2',
+        lineHeight: 16,
     },
     emptyState: {
         paddingVertical: 60,

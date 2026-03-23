@@ -1,4 +1,3 @@
-import 'react-native-gesture-handler';
 import { registerRootComponent } from 'expo';
 import React from 'react';
 import RootLayout from './src/core/_layout';

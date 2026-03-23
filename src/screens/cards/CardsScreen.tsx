@@ -37,7 +37,8 @@ export default function CardsScreen(): React.ReactElement {
   const hasCards = (cards ?? []).length > 0;
   if (hasCards) return <CardDashboardScreen />;
 
-  const isKYC1Verified = (kycStatus?.level ?? 0) >= 1;
+  const isKYC1Verified =
+    (kycStatus?.level ?? 0) >= 1 && kycStatus?.status === 'approved';
 
   const onAddCard = () => {
     if (isKYC1Verified) {

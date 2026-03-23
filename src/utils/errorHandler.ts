@@ -135,14 +135,28 @@ const ERROR_MAP: Record<ErrorCode, UserFacingError> = {
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 export function handleApiError(error: unknown): UserFacingError {
-    if (
-        error !== null &&
-        typeof error === 'object' &&
-        'code' in error
-    ) {
-        const raw = error as RawApiError;
-        const mapped = ERROR_MAP[raw.code];
-        if (mapped) return mapped;
+    if (error !== null && typeof error === 'object') {
+        const o = error as Record<string, unknown>;
+        if ('code' in o) {
+            const raw = error as RawApiError;
+            const mapped = ERROR_MAP[raw.code];
+            if (mapped) return mapped;
+        }
+        const msg = typeof o.message === 'string' ? o.message.trim() : '';
+        if (msg.length > 0) {
+            return {
+                title: 'Couldn’t complete request',
+                message: msg,
+                retryable: true,
+            };
+        }
+    }
+    if (error instanceof Error && error.message) {
+        return {
+            title: 'Couldn’t complete request',
+            message: error.message,
+            retryable: true,
+        };
     }
     return ERROR_MAP[ErrorCode.UNKNOWN];
 }

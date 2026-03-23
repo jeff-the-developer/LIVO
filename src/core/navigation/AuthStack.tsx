@@ -15,12 +15,19 @@ import ResetPasswordScreen from '@screens/auth/ResetPasswordScreen';
 import AccountTypeScreen from '@screens/auth/AccountTypeScreen';
 import PINSetupScreen from '@screens/auth/PINSetupScreen';
 import BiometricSetupScreen from '@screens/auth/BiometricSetupScreen';
+import OnboardingGateScreen from '@screens/auth/OnboardingGateScreen';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
-export default function AuthStack(): React.ReactElement {
+interface AuthStackProps {
+    /** When true, user is logged in but must finish username/PIN (app relaunch mid-onboarding) */
+    resumeOnboarding?: boolean;
+}
+
+export default function AuthStack({ resumeOnboarding = false }: AuthStackProps): React.ReactElement {
     return (
         <Stack.Navigator
+            initialRouteName={resumeOnboarding ? 'OnboardingGate' : 'Login'}
             screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: colors.background },
@@ -28,6 +35,7 @@ export default function AuthStack(): React.ReactElement {
                 gestureEnabled: true,
             }}
         >
+            <Stack.Screen name="OnboardingGate" component={OnboardingGateScreen} />
             <Stack.Screen name="Login" component={LoginScreen} options={{ gestureEnabled: false }} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />

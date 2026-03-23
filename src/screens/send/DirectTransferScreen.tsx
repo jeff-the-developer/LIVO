@@ -1,49 +1,54 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
     View,
     Text,
     TouchableOpacity,
     TextInput,
     StyleSheet,
-    Alert,
     Modal,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
     ArrowLeft01FreeIcons,
     ArrowRight01FreeIcons,
-    Search01FreeIcons,
 } from '@hugeicons/core-free-icons';
 import type { AppStackParamList } from '@app-types/navigation.types';
-import type { RecipientSearchResult } from '@app-types/send.types';
+import type { ApiResponse } from '@app-types/api.types';
+import type { RecipientSearchResult, TransferResponse } from '@app-types/send.types';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
+import { ui } from '@theme/ui';
 import BottomSheet from '@components/common/BottomSheet';
-import AssetRow from '@components/wallet/AssetRow';
+import Button from '@components/common/Button';
+import SheetStateBlock from '@components/common/SheetStateBlock';
+import ScreenHeader from '@components/common/ScreenHeader';
+import SearchBar from '@components/common/SearchBar';
 import SlideToConfirm from '@components/common/SlideToConfirm';
+import Input from '@components/common/Input';
+import SelectField from '@components/forms/SelectField';
+import { FlagIcon } from '@components/icons/CurrencyIcons';
 import { useSearchRecipients, useDirectTransfer } from '@hooks/api/useSend';
 import { useWalletDashboard } from '@hooks/api/useWallet';
 import { useDisplaySettings } from '@hooks/useDisplaySettings';
+import WalletAssetPickerSheet from '@components/wallet/WalletAssetPickerSheet';
+import TransferAmountStep from '@components/send/TransferAmountStep';
+import MoneyReceiptSheet, { type MoneyReceiptRow } from '@components/common/MoneyReceiptSheet';
+import { handleApiError } from '@utils/errorHandler';
+import { formatReceiptDateTime } from '@utils/formatReceipt';
+import { hapticLight, hapticSuccess, hapticWarning } from '@utils/haptics';
+import ApiErrorSheet from '@components/common/ApiErrorSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 type Step = 'form' | 'amount';
 
-const CURRENCY_FLAGS: Record<string, string> = {
-    USD: 'US', HKD: 'HK', CNY: 'CN', AUD: 'AU', CAD: 'CA',
-    CHF: 'CH', EUR: 'EU', GBP: 'GB', JPY: 'JP', SGD: 'SG',
-};
-
-function getFlagEmoji(symbol: string): string {
-    const code = CURRENCY_FLAGS[symbol] ?? 'US';
-    return code.toUpperCase().split('').map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('');
-}
-
 export default function DirectTransferScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<RouteProp<AppStackParamList, 'DirectTransfer'>>();
     const { currency, formatAmount } = useDisplaySettings();
     const dashboard = useWalletDashboard(currency);
     const directTransfer = useDirectTransfer();
@@ -60,12 +65,109 @@ export default function DirectTransferScreen(): React.ReactElement {
 
     // Sheet visibility
     const [recipientSheetVisible, setRecipientSheetVisible] = useState(false);
+    /** Explains add-recipient limits + optional path to Invite Friends (no POST /contacts API yet) */
+    const [addRecipientInfoVisible, setAddRecipientInfoVisible] = useState(false);
     const [currencySheetVisible, setCurrencySheetVisible] = useState(false);
     const [confirmIdentityVisible, setConfirmIdentityVisible] = useState(false);
+    const [receiptOpen, setReceiptOpen] = useState(false);
+    const [receipt, setReceipt] = useState<{
+        headline: string;
+        summary?: string;
+        rows: MoneyReceiptRow[];
+    } | null>(null);
+    const [noticeSheet, setNoticeSheet] = useState<{
+        title: string;
+        message: string;
+        tone: 'error' | 'warning' | 'info';
+    } | null>(null);
 
-    // Recipient search
-    const [searchQuery, setSearchQuery] = useState('');
-    const searchResults = useSearchRecipients(searchQuery);
+    // Recipient search (debounced API query; input updates immediately)
+    const [searchInput, setSearchInput] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const searchInputRef = useRef<TextInput>(null);
+    const searchResults = useSearchRecipients(debouncedSearch);
+
+    const qrPrefillApplied = useRef(false);
+    const currencyPrefillApplied = useRef(false);
+
+    // Apply QR / deep-link prefills once (scanner → Direct Transfer)
+    useEffect(() => {
+        const p = route.params;
+        if (!p || qrPrefillApplied.current) return;
+        const hasAny =
+            (p.prefillSearchQuery && p.prefillSearchQuery.trim()) ||
+            (p.prefillCurrency && p.prefillCurrency.trim()) ||
+            (p.prefillAmount && p.prefillAmount.trim()) ||
+            (p.prefillNote && p.prefillNote.trim());
+        if (!hasAny) return;
+        qrPrefillApplied.current = true;
+
+        if (p.prefillNote?.trim()) {
+            setNote(p.prefillNote.trim());
+        }
+        if (p.prefillAmount?.trim()) {
+            const amt = p.prefillAmount.trim();
+            if (/^\d*\.?\d+$/.test(amt)) {
+                const n = parseFloat(amt);
+                if (!Number.isNaN(n) && n > 0) {
+                    setAmount(amt.replace(/^0+(?=\d)/, '') || amt);
+                }
+            }
+        }
+        if (p.prefillSearchQuery?.trim()) {
+            const q = p.prefillSearchQuery.trim();
+            setSearchInput(q);
+            setDebouncedSearch(q);
+            setRecipientSheetVisible(true);
+        }
+    }, [route.params]);
+
+    useEffect(() => {
+        if (currencyPrefillApplied.current) return;
+        const sym = route.params?.prefillCurrency?.trim();
+        if (!sym || !dashboard.data?.assets?.length) return;
+        const asset = dashboard.data.assets.find(
+            (a) => a.symbol.toUpperCase() === sym.toUpperCase(),
+        );
+        if (asset) {
+            setSelectedCurrency(asset.symbol);
+            setSelectedCurrencyName(asset.name);
+            currencyPrefillApplied.current = true;
+        }
+    }, [route.params?.prefillCurrency, dashboard.data?.assets]);
+
+    useEffect(() => {
+        const id = setTimeout(() => setDebouncedSearch(searchInput.trim()), 280);
+        return () => clearTimeout(id);
+    }, [searchInput]);
+
+    const prevRecipientSheetOpen = useRef(false);
+    useEffect(() => {
+        // Only clear when the sheet actually closes (not on first mount with visible=false),
+        // so QR prefills are not wiped by the same commit as prefill.
+        if (prevRecipientSheetOpen.current && !recipientSheetVisible) {
+            setSearchInput('');
+            setDebouncedSearch('');
+        }
+        prevRecipientSheetOpen.current = recipientSheetVisible;
+    }, [recipientSheetVisible]);
+
+    useEffect(() => {
+        if (!recipientSheetVisible) return;
+        const raf = requestAnimationFrame(() => {
+            searchInputRef.current?.focus();
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [recipientSheetVisible]);
+
+    const searchDebouncing = searchInput.trim() !== debouncedSearch;
+    const recipients = searchResults.data?.recipients ?? [];
+    const showRecipientRows = recipients.length > 0;
+    const hasTyped = searchInput.trim().length >= 1;
+    const showSearchPending =
+        hasTyped &&
+        !showRecipientRows &&
+        (searchDebouncing || searchResults.isFetching);
 
     const availableBalance = dashboard.data?.assets?.find(
         (a) => a.symbol === selectedCurrency,
@@ -86,6 +188,18 @@ export default function DirectTransferScreen(): React.ReactElement {
         setRecipient(null);
     }, []);
 
+    const handleAddRecipientPress = useCallback(() => {
+        hapticLight();
+        setRecipientSheetVisible(false);
+        // Let the recipient sheet finish closing before opening the next modal (nested Modal safety)
+        setTimeout(() => setAddRecipientInfoVisible(true), 280);
+    }, []);
+
+    const handleInviteFriendsFromAddRecipient = useCallback(() => {
+        setAddRecipientInfoVisible(false);
+        navigation.navigate('InviteFriends');
+    }, [navigation]);
+
     const handleCurrencySelect = useCallback((symbol: string, name: string) => {
         setSelectedCurrency(symbol);
         setSelectedCurrencyName(name);
@@ -94,11 +208,19 @@ export default function DirectTransferScreen(): React.ReactElement {
 
     const handleNext = () => {
         if (!recipient) {
-            Alert.alert('Select Recipient', 'Please select a recipient first.');
+            setNoticeSheet({
+                title: 'Select recipient',
+                message: 'Choose who you are sending money to before continuing.',
+                tone: 'warning',
+            });
             return;
         }
         if (!selectedCurrency) {
-            Alert.alert('Select Currency', 'Please select a currency first.');
+            setNoticeSheet({
+                title: 'Select currency',
+                message: 'Choose the currency for this transfer.',
+                tone: 'warning',
+            });
             return;
         }
         setStep('amount');
@@ -127,13 +249,37 @@ export default function DirectTransferScreen(): React.ReactElement {
                 remark: note || undefined,
             },
             {
-                onSuccess: () => {
-                    Alert.alert('Transfer Sent', `${amount} ${selectedCurrency} sent to @${recipient.username}`, [
-                        { text: 'OK', onPress: () => navigation.goBack() },
-                    ]);
+                onSuccess: (res: ApiResponse<TransferResponse>) => {
+                    hapticSuccess();
+                    const d = res.data;
+                    const ts = formatReceiptDateTime();
+                    const rows: MoneyReceiptRow[] = [
+                        { label: 'Recipient', value: `@${recipient.username}` },
+                        { label: 'Amount', value: `${d.amount ?? '—'} ${d.currency ?? ''}`.trim() },
+                        { label: 'Fee', value: `${d.fee ?? '—'} ${d.currency ?? ''}`.trim() },
+                        { label: 'Status', value: d.status ?? '—' },
+                        { label: 'Date', value: ts },
+                    ];
+                    if (d.reference?.trim()) {
+                        rows.push({ label: 'Reference', value: d.reference, mono: true });
+                    }
+                    if (d.tx_id?.trim()) {
+                        rows.push({ label: 'Transaction ID', value: d.tx_id, mono: true });
+                    }
+                    setReceipt({
+                        headline: 'Transfer sent',
+                        summary: `${d.amount} ${d.currency} to @${recipient.username}`,
+                        rows,
+                    });
+                    setReceiptOpen(true);
                 },
-                onError: (error: any) => {
-                    Alert.alert('Transfer Failed', error?.message || 'Something went wrong');
+                onError: (error: unknown) => {
+                    hapticWarning();
+                    const e = handleApiError(error);
+                    const message = e.retryable
+                        ? `${e.message}\n\nCheck your balance and try again.`
+                        : e.message;
+                    setNoticeSheet({ title: e.title, message, tone: 'error' });
                 },
             },
         );
@@ -142,201 +288,163 @@ export default function DirectTransferScreen(): React.ReactElement {
     // ─── Amount Entry Screen ────────────────────────────────────────────────────
     if (step === 'amount') {
         const displayAmount = amount === '0' ? '$0' : `$${amount}`;
+        const recipientSummary = recipient
+            ? `@${recipient.username}${recipient.name ? ` · ${recipient.name}` : ''}`
+            : '—';
+
         return (
-            <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => setStep('form')} activeOpacity={0.6} style={styles.backBtn}>
-                        <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.accountSelector} activeOpacity={0.6}>
-                        <Text style={styles.accountText}>MySaving (088-001-286534)</Text>
-                        <HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="rgba(0,0,0,0.20)" />
-                    </TouchableOpacity>
-                    <View style={styles.backBtn} />
-                </View>
-
-                {/* Amount Display */}
-                <View style={styles.amountSection}>
-                    <Text style={styles.amountDisplay} numberOfLines={1} adjustsFontSizeToFit>
-                        {displayAmount}
-                    </Text>
-                    <View style={styles.currencyBadge}>
-                        <Text style={styles.currencyBadgeText}>
-                            {selectedCurrencyName} ({selectedCurrency})
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Numpad */}
-                <View style={styles.numpad}>
-                    {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['.', '0', 'back']].map((row, ri) => (
-                        <View key={ri} style={styles.numpadRow}>
-                            {row.map((key) => (
-                                <TouchableOpacity
-                                    key={key}
-                                    style={styles.numpadKey}
-                                    onPress={() => handleNumpadPress(key)}
-                                    activeOpacity={0.5}
-                                >
-                                    <Text style={styles.numpadText}>
-                                        {key === 'back' ? '<' : key}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    ))}
-                </View>
-
-                {/* Footer */}
-                <View style={styles.amountFooter}>
-                    <View style={styles.balanceInfoCard}>
-                        <View style={styles.balanceRow}>
-                            <Text style={styles.balanceLabel}>
-                                ${availableBalance}
-                            </Text>
-                            <Text style={styles.dailyLimit}>Daily Limit: No Limit</Text>
-                        </View>
-                    </View>
-                    <SlideToConfirm
-                        onConfirm={handleSlideConfirm}
-                        label={parseFloat(amount) > 0 ? 'Slide to confirm' : 'Slide to continue'}
+            <>
+                <TransferAmountStep
+                    title="Direct Transfer"
+                    onBackPress={() => setStep('form')}
+                    displayAmount={displayAmount}
+                    badgeLabel={`${selectedCurrencyName} (${selectedCurrency})`}
+                    infoPrimary={`$${availableBalance}`}
+                    infoSecondary="Daily Limit: No Limit"
+                    onKeyPress={handleNumpadPress}
+                    onConfirm={handleSlideConfirm}
+                    sliderLabel={parseFloat(amount) > 0 ? 'Slide to confirm' : 'Slide to continue'}
+                    confirmationRows={[
+                        { label: 'Recipient', value: recipientSummary },
+                        { label: 'You send', value: `${amount} ${selectedCurrency}` },
+                        ...(note.trim() ? [{ label: 'Note', value: note.trim() }] : []),
+                    ]}
+                    feeBreakdown={{
+                        rows: [
+                            { label: 'Service fee', value: `0 ${selectedCurrency}` },
+                            { label: 'Recipient receives', value: `${amount} ${selectedCurrency}` },
+                        ],
+                        footnote:
+                            'No LIVO service fee on peer transfers. Your bank or card issuer may charge separate fees.',
+                    }}
+                    headerCenter={(
+                        <TouchableOpacity style={styles.accountSelector} activeOpacity={0.6}>
+                            <Text style={styles.accountText}>MySaving (088-001-286534)</Text>
+                            <HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="rgba(0,0,0,0.20)" />
+                        </TouchableOpacity>
+                    )}
+                />
+                {receipt ? (
+                    <MoneyReceiptSheet
+                        visible={receiptOpen}
+                        onClose={() => setReceiptOpen(false)}
+                        headline={receipt.headline}
+                        summary={receipt.summary}
+                        rows={receipt.rows}
+                        onDone={() => {
+                            setReceiptOpen(false);
+                            setReceipt(null);
+                            navigation.goBack();
+                        }}
                     />
-                </View>
-            </SafeAreaView>
+                ) : null}
+                <ApiErrorSheet
+                    visible={noticeSheet !== null}
+                    onClose={() => setNoticeSheet(null)}
+                    title={noticeSheet?.title ?? ''}
+                    message={noticeSheet?.message ?? ''}
+                    tone={noticeSheet?.tone === 'warning' ? 'warning' : noticeSheet?.tone === 'info' ? 'info' : 'error'}
+                />
+            </>
         );
     }
 
     // ─── Form Screen ────────────────────────────────────────────────────────────
     return (
+        <>
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.6} style={styles.backBtn}>
-                    <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Direct Transfer</Text>
-                <View style={styles.backBtn} />
-            </View>
+            <ScreenHeader title="Direct Transfer" onBackPress={() => navigation.goBack()} />
 
             {/* Form */}
             <View style={styles.form}>
                 {/* Recipient */}
                 <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Recipient</Text>
-                    <TouchableOpacity
-                        style={styles.fieldDropdown}
-                        onPress={() => setRecipientSheetVisible(true)}
-                        activeOpacity={0.6}
-                    >
-                        {recipient ? (
-                            <View style={styles.selectedRow}>
-                                <Text style={styles.selectedFlag}>
-                                    {getFlagEmoji(selectedCurrency || 'USD')}
-                                </Text>
-                                <Text style={styles.fieldValue}>
-                                    @{recipient.username}
-                                </Text>
-                            </View>
-                        ) : (
-                            <Text style={styles.fieldPlaceholder}>Select Recipient</Text>
-                        )}
-                        <HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="#B2B2B2" />
-                    </TouchableOpacity>
+                        <SelectField
+                            value={recipient ? `@${recipient.username}` : undefined}
+                            placeholder="Select Recipient"
+                            onPress={() => setRecipientSheetVisible(true)}
+                            leftAdornment={
+                                recipient ? (
+                                    <View style={styles.recipientAdornment}>
+                                        <Text style={styles.recipientAdornmentText}>
+                                            {(recipient.name || recipient.username || '?').charAt(0).toUpperCase()}
+                                        </Text>
+                                    </View>
+                                ) : undefined
+                            }
+                        />
                 </View>
 
                 {/* Currency */}
                 <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Currency</Text>
-                    <TouchableOpacity
-                        style={styles.fieldDropdown}
+                    <SelectField
+                        value={selectedCurrency ? `${selectedCurrencyName} (${selectedCurrency})` : undefined}
+                        placeholder="Select Currency"
                         onPress={() => setCurrencySheetVisible(true)}
-                        activeOpacity={0.6}
-                    >
-                        {selectedCurrency ? (
-                            <View style={styles.selectedRow}>
-                                <Text style={styles.selectedFlag}>
-                                    {getFlagEmoji(selectedCurrency)}
-                                </Text>
-                                <View>
-                                    <Text style={styles.fieldValue}>
-                                        @{recipient?.username || ''}
-                                    </Text>
-                                    <Text style={styles.fieldSubValue}>
-                                        Available {availableBalance} {selectedCurrency}
-                                    </Text>
-                                </View>
-                            </View>
-                        ) : (
-                            <Text style={styles.fieldPlaceholder}>Select Currency</Text>
-                        )}
-                        <HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="#B2B2B2" />
-                    </TouchableOpacity>
+                        leftAdornment={
+                            selectedCurrency ? (
+                                <FlagIcon code={selectedCurrency} size={ui.selectorIconSm} />
+                            ) : undefined
+                        }
+                    />
+                    {selectedCurrency ? (
+                        <Text style={styles.fieldSubValue}>Available {availableBalance} {selectedCurrency}</Text>
+                    ) : null}
                 </View>
 
                 {/* Note */}
                 <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Note (Optional)</Text>
-                    <TouchableOpacity style={styles.fieldDropdown} activeOpacity={1}>
-                        <TextInput
-                            style={styles.noteInput}
-                            placeholder="Add note for both parties"
-                            placeholderTextColor="#B2B2B2"
-                            value={note}
-                            onChangeText={setNote}
-                        />
-                        <HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="#B2B2B2" />
-                    </TouchableOpacity>
+                    <Input
+                        value={note}
+                        onChangeText={setNote}
+                        placeholder="Add note for both parties"
+                        rightAdornment={<HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="#B2B2B2" />}
+                    />
                 </View>
             </View>
 
             {/* Next Button */}
             <View style={styles.formFooter}>
-                <TouchableOpacity
-                    style={[styles.nextBtn, (!recipient || !selectedCurrency) && styles.nextBtnDisabled]}
+                <Button
+                    label="Next"
                     onPress={handleNext}
-                    activeOpacity={0.7}
                     disabled={!recipient || !selectedCurrency}
-                >
-                    <Text style={[styles.nextBtnText, (!recipient || !selectedCurrency) && styles.nextBtnTextDisabled]}>
-                        Next
-                    </Text>
-                </TouchableOpacity>
+                />
             </View>
 
             {/* ─── Recipient Search Sheet ──────────────────────────────────── */}
             <BottomSheet
                 visible={recipientSheetVisible}
                 onClose={() => setRecipientSheetVisible(false)}
-                maxHeight="85%"
+                maxHeight="90%"
+                sheetHeight="88%"
                 showBackButton
                 footer={
-                    <TouchableOpacity style={styles.addRecipientBtn} activeOpacity={0.7}>
-                        <Text style={styles.addRecipientText}>Add Recipient</Text>
-                    </TouchableOpacity>
+                    <Button
+                        label="Add recipient"
+                        onPress={handleAddRecipientPress}
+                        accessibilityLabel="Add recipient — learn how paying someone works"
+                    />
                 }
             >
                 <Text style={styles.sheetTitle}>Recipient</Text>
 
                 {/* Search */}
-                <View style={styles.searchBar}>
-                    <HugeiconsIcon icon={Search01FreeIcons} size={19} color="rgba(0,0,0,0.20)" />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search "
-                        placeholderTextColor="rgba(0,0,0,0.20)"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
-                </View>
+                <SearchBar
+                    ref={searchInputRef}
+                    value={searchInput}
+                    onChangeText={setSearchInput}
+                    placeholder="Search username, email, or UID"
+                />
 
-                {/* Results */}
-                {searchResults.data?.recipients?.length ? (
+                {/* Results (updates as you type; no need to tap keyboard Search) */}
+                {showRecipientRows ? (
                     <View style={styles.recipientList}>
-                        <Text style={styles.recipientSection}>Recent</Text>
-                        {searchResults.data.recipients.map((r) => (
+                        <Text style={styles.recipientSection}>Results</Text>
+                        {recipients.map((r) => (
                             <TouchableOpacity
                                 key={r.id}
                                 style={styles.recipientRow}
@@ -356,19 +464,50 @@ export default function DirectTransferScreen(): React.ReactElement {
                             </TouchableOpacity>
                         ))}
                     </View>
-                ) : searchQuery.length >= 2 ? (
+                ) : showSearchPending ? (
                     <View style={styles.emptySearch}>
-                        <Text style={styles.emptySearchText}>
-                            {searchResults.isLoading ? 'Searching...' : 'No results found'}
-                        </Text>
+                        <ActivityIndicator color={colors.textMuted} style={styles.searchSpinner} />
+                        <Text style={styles.emptySearchText}>Searching…</Text>
+                    </View>
+                ) : debouncedSearch.length >= 1 ? (
+                    <View style={styles.emptySearch}>
+                        <Text style={styles.emptySearchText}>No results found</Text>
                     </View>
                 ) : (
                     <View style={styles.emptySearch}>
                         <Text style={styles.emptySearchText}>
-                            Search by username, email, or UID
+                            Start typing — results appear automatically
                         </Text>
                     </View>
                 )}
+            </BottomSheet>
+
+            <BottomSheet
+                visible={addRecipientInfoVisible}
+                onClose={() => setAddRecipientInfoVisible(false)}
+                maxHeight="72%"
+                title="Add recipient"
+                showBackButton
+                footer={
+                    <View style={styles.addRecipientInfoFooter}>
+                        <Button label="Invite friends" onPress={handleInviteFriendsFromAddRecipient} />
+                        <Button
+                            label="Got it"
+                            variant="secondary"
+                            onPress={() => setAddRecipientInfoVisible(false)}
+                        />
+                    </View>
+                }
+            >
+                <SheetStateBlock
+                    tone="info"
+                    title="Add recipient isn't available yet"
+                    description={
+                        'Saving people to a personal recipient list (or adding someone who isn’t found in search) is not supported in this version of the app. Nothing is created or sent from this screen.\n\n' +
+                        'To pay someone who already uses LIVOPay, close this sheet and use the search field above with their username, email, or UID.\n\n' +
+                        "If they don't have an account yet, invite them from Invite friends — then you can send using search once they join."
+                    }
+                />
             </BottomSheet>
 
             {/* ─── Confirm Identity Modal ─────────────────────────────────── */}
@@ -412,37 +551,38 @@ export default function DirectTransferScreen(): React.ReactElement {
                 </View>
             </Modal>
 
-            {/* ─── Currency Picker Sheet ──────────────────────────────────── */}
-            <BottomSheet
+            <WalletAssetPickerSheet
                 visible={currencySheetVisible}
                 onClose={() => setCurrencySheetVisible(false)}
-                maxHeight="85%"
-                showBackButton
-            >
-                <Text style={styles.sheetTitle}>Currency</Text>
-
-                <View style={styles.assetList}>
-                    {dashboard.data?.assets?.map((asset) => (
-                        <AssetRow
-                            key={asset.symbol}
-                            symbol={asset.symbol}
-                            name={asset.name}
-                            price={asset.price}
-                            change24h={asset.change_24h}
-                            balance={asset.balance}
-                            usdValue={`${asset.balance} USD`}
-                            iconUrl={asset.icon_url}
-                            isHidden={false}
-                            onPress={() => handleCurrencySelect(asset.symbol, asset.name)}
-                        />
-                    )) ?? (
-                        <View style={styles.emptySearch}>
-                            <Text style={styles.emptySearchText}>Loading assets...</Text>
-                        </View>
-                    )}
-                </View>
-            </BottomSheet>
+                title="Currency"
+                assets={dashboard.data?.assets ?? []}
+                onSelect={handleCurrencySelect}
+                emptyTitle="Loading assets"
+                emptyDescription="Available wallet assets will appear here shortly."
+            />
         </SafeAreaView>
+            {receipt ? (
+                <MoneyReceiptSheet
+                    visible={receiptOpen}
+                    onClose={() => setReceiptOpen(false)}
+                    headline={receipt.headline}
+                    summary={receipt.summary}
+                    rows={receipt.rows}
+                    onDone={() => {
+                        setReceiptOpen(false);
+                        setReceipt(null);
+                        navigation.goBack();
+                    }}
+                />
+            ) : null}
+            <ApiErrorSheet
+                visible={noticeSheet !== null}
+                onClose={() => setNoticeSheet(null)}
+                title={noticeSheet?.title ?? ''}
+                message={noticeSheet?.message ?? ''}
+                tone={noticeSheet?.tone === 'warning' ? 'warning' : noticeSheet?.tone === 'info' ? 'info' : 'error'}
+            />
+        </>
     );
 }
 
@@ -450,6 +590,21 @@ const styles = StyleSheet.create({
     safe: {
         flex: 1,
         backgroundColor: colors.background,
+    },
+    recipientAdornment: {
+        width: ui.selectorIconSm,
+        height: ui.selectorIconSm,
+        borderRadius: ui.selectorIconSm / 2,
+        backgroundColor: colors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.border,
+    },
+    recipientAdornmentText: {
+        fontSize: Math.max(11, ui.selectorIconSm * 0.45),
+        fontWeight: '700',
+        color: colors.textPrimary,
     },
     // Header
     header: {
@@ -575,18 +730,9 @@ const styles = StyleSheet.create({
         lineHeight: 37.5,
         marginBottom: 19,
     },
-    addRecipientBtn: {
-        height: 52,
-        backgroundColor: '#242424',
-        borderRadius: 521,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    addRecipientText: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: 'white',
-        lineHeight: 24,
+    addRecipientInfoFooter: {
+        width: '100%',
+        gap: spacing.sm,
     },
     // Search bar
     searchBar: {
@@ -654,6 +800,9 @@ const styles = StyleSheet.create({
     emptySearch: {
         paddingVertical: 40,
         alignItems: 'center',
+    },
+    searchSpinner: {
+        marginBottom: spacing.sm,
     },
     emptySearchText: {
         fontSize: 14,

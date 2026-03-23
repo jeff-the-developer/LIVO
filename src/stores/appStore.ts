@@ -9,12 +9,16 @@ export type AppLanguage =
     | 'English' | 'Spanish' | 'French' | 'German'
     | 'Portuguese' | 'Chinese' | 'Japanese' | 'Korean';
 export type ChangeBasis = '24h' | 'utc';
+export type DisplayMode = 'available' | 'total';
+export type AssetTypeFilter = 'all' | 'fiat' | 'crypto';
 
 interface DisplaySettings {
     theme: AppTheme;
     language: AppLanguage;
     currency: SupportedCurrency;
     changeBasis: ChangeBasis;
+    displayMode: DisplayMode;
+    assetTypeFilter: AssetTypeFilter;
 }
 
 interface AppState extends DisplaySettings {
@@ -27,6 +31,8 @@ interface AppActions {
     setLanguage(language: AppLanguage): void;
     setCurrency(currency: SupportedCurrency): void;
     setChangeBasis(basis: ChangeBasis): void;
+    setDisplayMode(mode: DisplayMode): void;
+    setAssetTypeFilter(filter: AssetTypeFilter): void;
     setMaintenanceMode(value: boolean): void;
     hydrate(): Promise<void>;
 }
@@ -39,6 +45,8 @@ const DEFAULTS: DisplaySettings = {
     language: 'English',
     currency: 'USD',
     changeBasis: '24h',
+    displayMode: 'available',
+    assetTypeFilter: 'all',
 };
 
 async function saveDisplaySettings(settings: DisplaySettings): Promise<void> {
@@ -65,27 +73,39 @@ export const useAppStore = create<AppState & AppActions>((set, get) => ({
 
     setTheme(theme) {
         set({ theme });
-        const { language, currency, changeBasis } = get();
-        saveDisplaySettings({ theme, language, currency, changeBasis });
+        const { language, currency, changeBasis, displayMode, assetTypeFilter } = get();
+        saveDisplaySettings({ theme, language, currency, changeBasis, displayMode, assetTypeFilter });
     },
 
     setLanguage(language) {
         set({ language });
-        const { theme, currency, changeBasis } = get();
-        saveDisplaySettings({ theme, language, currency, changeBasis });
+        const { theme, currency, changeBasis, displayMode, assetTypeFilter } = get();
+        saveDisplaySettings({ theme, language, currency, changeBasis, displayMode, assetTypeFilter });
         void i18n.changeLanguage(LANGUAGE_CODES[language]);
     },
 
     setCurrency(currency) {
         set({ currency });
-        const { theme, language, changeBasis } = get();
-        saveDisplaySettings({ theme, language, currency, changeBasis });
+        const { theme, language, changeBasis, displayMode, assetTypeFilter } = get();
+        saveDisplaySettings({ theme, language, currency, changeBasis, displayMode, assetTypeFilter });
     },
 
     setChangeBasis(changeBasis) {
         set({ changeBasis });
-        const { theme, language, currency } = get();
-        saveDisplaySettings({ theme, language, currency, changeBasis });
+        const { theme, language, currency, displayMode, assetTypeFilter } = get();
+        saveDisplaySettings({ theme, language, currency, changeBasis, displayMode, assetTypeFilter });
+    },
+
+    setDisplayMode(displayMode) {
+        set({ displayMode });
+        const { theme, language, currency, changeBasis, assetTypeFilter } = get();
+        saveDisplaySettings({ theme, language, currency, changeBasis, displayMode, assetTypeFilter });
+    },
+
+    setAssetTypeFilter(assetTypeFilter) {
+        set({ assetTypeFilter });
+        const { theme, language, currency, changeBasis, displayMode } = get();
+        saveDisplaySettings({ theme, language, currency, changeBasis, displayMode, assetTypeFilter });
     },
 
     setMaintenanceMode(value) {

@@ -20,6 +20,8 @@ import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import BottomSheet from '@components/common/BottomSheet';
+import Button from '@components/common/Button';
+import SheetStateBlock from '@components/common/SheetStateBlock';
 import type { AppStackParamList } from '@app-types/navigation.types';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
@@ -195,25 +197,13 @@ export default function BiometricVerifyScreen(): React.ReactElement {
 
             {/* Failed Sheet — uses shared BottomSheet */}
             <BottomSheet visible={showFailed} onClose={() => setShowFailed(false)}>
-                <View style={fs.body}>
-                    <View style={fs.iconCircle}>
-                        <Text style={fs.iconX}>✕</Text>
-                    </View>
-                    <Text style={fs.title}>
-                        Biometric authentication{'\n'}failed
-                    </Text>
-                </View>
+                <SheetStateBlock tone="error" title={`Biometric authentication\nfailed`} />
                 <View style={fs.footer}>
-                    <TouchableOpacity
-                        style={fs.okayBtn}
+                    <Button
+                        label="Okay"
                         onPress={() => setShowFailed(false)}
-                        activeOpacity={0.85}
-                        accessibilityLabel="Okay"
-                        accessibilityRole="button"
                         testID="biometric-failed-okay"
-                    >
-                        <Text style={fs.okayBtnText}>Okay</Text>
-                    </TouchableOpacity>
+                    />
                 </View>
             </BottomSheet>
         </SafeAreaView>
@@ -307,29 +297,5 @@ const sl = StyleSheet.create({
 
 // ─── Failed Sheet Content Styles ──────────────────────────────────────────────
 const fs = StyleSheet.create({
-    body: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl },
-    iconCircle: {
-        width: 52,
-        height: 52,
-        borderRadius: 26,
-        backgroundColor: palette.redLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: spacing.lg,
-    },
-    iconX: { fontSize: 24, color: palette.red, fontWeight: '700' },
-    title: {
-        ...typography.h2,
-        color: colors.textPrimary,
-        fontWeight: '800',
-        lineHeight: 32,
-    },
     footer: { paddingHorizontal: spacing.base, paddingBottom: spacing.base },
-    okayBtn: {
-        backgroundColor: colors.textPrimary,
-        borderRadius: borderRadius.full,
-        paddingVertical: spacing.base,
-        alignItems: 'center',
-    },
-    okayBtnText: { ...typography.bodyMd, color: colors.buttonText, fontWeight: '600' },
 });

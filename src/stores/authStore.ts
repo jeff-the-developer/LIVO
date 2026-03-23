@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { create } from 'zustand';
 import * as tokenStorage from '@utils/tokenStorage';
-import { logoutUser } from '@api/auth';
 import { ENV } from '@config/env';
 
 function isJwtExpired(token: string): boolean {
@@ -28,6 +27,8 @@ export interface User {
     email_verified?: boolean;
     biometric_enabled?: boolean;
     mfa_enabled?: boolean;
+    /** From GET /user/profile & login — `false` means user must complete PIN setup */
+    pin_enabled?: boolean;
     status?: string;
     balance?: string;
     created_at?: string;
@@ -62,6 +63,9 @@ const initialState: AuthState = {
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
+// Timestamp of last login — prevents stale 401s from logging out a fresh session
+let _lastLoginAt = 0;
+
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     ...initialState,
 
@@ -69,6 +73,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         await tokenStorage.saveToken(token);
         await tokenStorage.saveRefreshToken(refreshToken);
         await tokenStorage.saveUser(user);
+        _lastLoginAt = Date.now();
         set({
             token,
             user,
@@ -78,10 +83,19 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     },
 
     async logout() {
-        try {
-            await logoutUser();
-        } catch {
-            // Ignore — clear local state regardless of server response
+        // Ignore logout calls within 10 seconds of a fresh login —
+        // these are caused by stale 401 responses from before login
+        if (Date.now() - _lastLoginAt < 10_000) {
+            return;
+        }
+        // Fire-and-forget logout to backend using raw axios (not apiClient)
+        // to avoid the response interceptor triggering another logout loop
+        const token = get().token;
+        if (token) {
+            axios.post(`${ENV.BASE_URL}/auth/logout`, null, {
+                headers: { Authorization: `Bearer ${token}` },
+                timeout: 5000,
+            }).catch(() => {});
         }
         await tokenStorage.clearAll();
         set({
@@ -92,6 +106,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
     setUser(user) {
         set({ user });
+        void tokenStorage.saveUser(user).catch(() => {});
     },
 
     setPinVerified(value) {
@@ -125,16 +140,26 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
                 return;
             }
             try {
-                const { data } = await axios.post<{ token: string }>(
+                const { data } = await axios.post<{ token: string; refresh_token?: string }>(
                     `${ENV.BASE_URL}/auth/refresh`,
                     { refresh_token: refreshToken },
-                    { headers: { 'Content-Type': 'application/json' } },
+                    { headers: { 'Content-Type': 'application/json' }, timeout: 10000 },
                 );
                 const newToken = data.token;
                 await tokenStorage.saveToken(newToken);
+                if (data.refresh_token) {
+                    await tokenStorage.saveRefreshToken(data.refresh_token);
+                }
                 set({ token: newToken, user, isLoggedIn: true });
-            } catch {
-                await get().logout();
+            } catch (err: any) {
+                // If rate limited or network error, keep user logged in with
+                // stale token — the response interceptor will retry refresh later
+                const status = err?.response?.status;
+                if (status === 429 || !err?.response) {
+                    set({ token: storedToken, user, isLoggedIn: true });
+                } else {
+                    await get().logout();
+                }
             }
         } catch {
             await get().logout();

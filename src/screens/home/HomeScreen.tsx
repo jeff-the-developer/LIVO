@@ -19,18 +19,22 @@ import {
 } from '@hugeicons/core-free-icons';
 import Svg, { Path } from 'react-native-svg';
 import type { AppStackParamList } from '@app-types/navigation.types';
-import { colors, palette } from '@theme/colors';
+import { colors } from '@theme/colors';
 import { typography } from '@theme/typography';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
+import { ui } from '@theme/ui';
 import { useDisplaySettings } from '@hooks/useDisplaySettings';
 import { useWalletDashboard } from '@hooks/api/useWallet';
 import { useTransactions } from '@hooks/api/useTransactions';
 import { useNotifications } from '@hooks/api/useNotifications';
+import EmptyState from '@components/common/EmptyState';
+import ErrorState from '@components/common/ErrorState';
 import BalanceCard from '@components/wallet/BalanceCard';
 import AssetRow from '@components/wallet/AssetRow';
 import { FlagIcon } from '@components/icons/CurrencyIcons';
 import TransactionRow from '@components/transactions/TransactionRow';
+import TransactionListSkeleton from '@components/transactions/TransactionListSkeleton';
 import BalanceFilterSheet from '@components/wallet/BalanceFilterSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
@@ -41,34 +45,31 @@ const TABS: { id: TabId; label: string }[] = [
     { id: 'account', label: 'Account' },
     { id: 'activity', label: 'Activity' },
 ];
+const EMPTY_STATE_IMAGE = require('@assets/images/branding/logo_gradient_icon.png');
 
-const CURRENCY_FLAGS: Record<string, string> = {
-    USD: 'US', HKD: 'HK', CNY: 'CN', AUD: 'AU', CAD: 'CA',
-    CHF: 'CH', EUR: 'EU', GBP: 'GB', JPY: 'JP', SGD: 'SG',
-};
-
-function getFlagEmoji(currency: string): string {
-    const code = CURRENCY_FLAGS[currency] ?? 'US';
-    return code
-        .toUpperCase()
-        .split('')
-        .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
-        .join('');
-}
 
 export default function HomeScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
-    const { currency, formatAmount } = useDisplaySettings();
+    const {
+        currency,
+        formatAmount,
+        displayMode,
+        assetTypeFilter,
+        setCurrency,
+        setDisplayMode,
+        setAssetTypeFilter,
+    } = useDisplaySettings();
 
     const [balanceHidden, setBalanceHidden] = useState(false);
     const [activeTab, setActiveTab] = useState<TabId>('assets');
     const [balanceSheetVisible, setBalanceSheetVisible] = useState(false);
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-    const [assetTypeFilter, setAssetTypeFilter] = useState<'all' | 'fiat' | 'crypto'>('all');
-    const [displayMode, setDisplayMode] = useState<'available' | 'total'>('available');
 
     const dashboard = useWalletDashboard(currency);
-    const transactions = useTransactions({ page: 1, limit: 10 });
+    const transactions = useTransactions(
+        { page: 1, limit: 10 },
+        { enabled: activeTab === 'activity' },
+    );
     const notifications = useNotifications(1, 10);
 
     const unreadCount = notifications.data?.unread_count ?? 0;
@@ -102,9 +103,11 @@ export default function HomeScreen(): React.ReactElement {
 
     const sortedFilteredAssets = useMemo(() => {
         const assets = dashboard.data?.assets ?? [];
+        // Exclude the base display currency — it's the reference, not an asset to list
+        const withoutBase = assets.filter((a) => a.symbol.toUpperCase() !== currency.toUpperCase());
         const filtered = assetTypeFilter === 'all'
-            ? assets
-            : assets.filter((a) =>
+            ? withoutBase
+            : withoutBase.filter((a) =>
                   assetTypeFilter === 'fiat'
                       ? FIAT_SYMBOLS.has(a.symbol.toUpperCase())
                       : !FIAT_SYMBOLS.has(a.symbol.toUpperCase()),
@@ -113,15 +116,24 @@ export default function HomeScreen(): React.ReactElement {
             const diff = parseFloat(a.balance) - parseFloat(b.balance);
             return sortOrder === 'desc' ? -diff : diff;
         });
-    }, [dashboard.data?.assets, sortOrder, assetTypeFilter]);
+    }, [dashboard.data?.assets, sortOrder, assetTypeFilter, currency]);
 
     const cycleAssetType = useCallback(() => {
-        setAssetTypeFilter((prev) => {
-            if (prev === 'all') return 'fiat';
-            if (prev === 'fiat') return 'crypto';
-            return 'all';
-        });
-    }, []);
+        if (assetTypeFilter === 'all') setAssetTypeFilter('fiat');
+        else if (assetTypeFilter === 'fiat') setAssetTypeFilter('crypto');
+        else setAssetTypeFilter('all');
+    }, [assetTypeFilter, setAssetTypeFilter]);
+
+    const goToSendTab = useCallback(() => {
+        (navigation as { navigate: (name: string) => void }).navigate('Send');
+    }, [navigation]);
+
+    const goToDeposit = useCallback(() => {
+        const parent = navigation.getParent();
+        if (parent) {
+            (parent as { navigate: (name: string) => void }).navigate('Deposit');
+        }
+    }, [navigation]);
 
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
@@ -135,9 +147,13 @@ export default function HomeScreen(): React.ReactElement {
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <View style={styles.flagWrap}>
-                        <FlagIcon code="USD" size={28} />
-                    </View>
+                    <TouchableOpacity
+                        style={styles.flagWrap}
+                        activeOpacity={0.6}
+                        onPress={() => setBalanceSheetVisible(true)}
+                    >
+                        <FlagIcon code={currency} size={28} />
+                    </TouchableOpacity>
                     <View style={styles.headerRight}>
                         <TouchableOpacity
                             onPress={() => setBalanceHidden((v) => !v)}
@@ -147,17 +163,17 @@ export default function HomeScreen(): React.ReactElement {
                             {/* Eye icon — toggles between view and view-off */}
                             {!balanceHidden ? (
                                 <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                                    <Path d="M2 8C2 8 6.47715 3 12 3C17.5228 3 22 8 22 8" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" />
-                                    <Path d="M21.544 13.045C21.848 13.4713 22 13.6845 22 14C22 14.3155 21.848 14.5287 21.544 14.955C20.1779 16.8706 16.6892 21 12 21C7.31078 21 3.8221 16.8706 2.45604 14.955C2.15201 14.5287 2 14.3155 2 14C2 13.6845 2.15201 13.4713 2.45604 13.045C3.8221 11.1294 7.31078 7 12 7C16.6892 7 20.1779 11.1294 21.544 13.045Z" stroke="#242424" strokeWidth={1.5} />
-                                    <Path d="M15 14C15 12.3431 13.6569 11 12 11C10.3431 11 9 12.3431 9 14C9 15.6569 10.3431 17 12 17C13.6569 17 15 15.6569 15 14Z" stroke="#242424" strokeWidth={1.5} />
+                                    <Path d="M2 8C2 8 6.47715 3 12 3C17.5228 3 22 8 22 8" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" />
+                                    <Path d="M21.544 13.045C21.848 13.4713 22 13.6845 22 14C22 14.3155 21.848 14.5287 21.544 14.955C20.1779 16.8706 16.6892 21 12 21C7.31078 21 3.8221 16.8706 2.45604 14.955C2.15201 14.5287 2 14.3155 2 14C2 13.6845 2.15201 13.4713 2.45604 13.045C3.8221 11.1294 7.31078 7 12 7C16.6892 7 20.1779 11.1294 21.544 13.045Z" stroke={colors.textPrimary} strokeWidth={1.5} />
+                                    <Path d="M15 14C15 12.3431 13.6569 11 12 11C10.3431 11 9 12.3431 9 14C9 15.6569 10.3431 17 12 17C13.6569 17 15 15.6569 15 14Z" stroke={colors.textPrimary} strokeWidth={1.5} />
                                 </Svg>
                             ) : (
                                 <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                                    <Path d="M22 8C22 8 18 14 12 14C6 14 2 8 2 8" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" />
-                                    <Path d="M15 13.5L16.5 16" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                                    <Path d="M20 11L22 13" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                                    <Path d="M2 13L4 11" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                                    <Path d="M9 13.5L7.5 16" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                    <Path d="M22 8C22 8 18 14 12 14C6 14 2 8 2 8" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" />
+                                    <Path d="M15 13.5L16.5 16" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                    <Path d="M20 11L22 13" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                    <Path d="M2 13L4 11" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                    <Path d="M9 13.5L7.5 16" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                                 </Svg>
                             )}
                         </TouchableOpacity>
@@ -168,8 +184,8 @@ export default function HomeScreen(): React.ReactElement {
                         >
                             {/* Scanner icon */}
                             <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                                <Path d="M2.5 8.18677C2.60406 6.08705 2.91537 4.77792 3.84664 3.84664C4.77792 2.91537 6.08705 2.60406 8.18677 2.5M21.5 8.18677C21.3959 6.08705 21.0846 4.77792 20.1534 3.84664C19.2221 2.91537 17.9129 2.60406 15.8132 2.5M15.8132 21.5C17.9129 21.3959 19.2221 21.0846 20.1534 20.1534C21.0846 19.2221 21.3959 17.9129 21.5 15.8132M8.18676 21.5C6.08705 21.3959 4.77792 21.0846 3.84664 20.1534C2.91537 19.2221 2.60406 17.9129 2.5 15.8132" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                                <Path d="M2.5 12H21.5" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" />
+                                <Path d="M2.5 8.18677C2.60406 6.08705 2.91537 4.77792 3.84664 3.84664C4.77792 2.91537 6.08705 2.60406 8.18677 2.5M21.5 8.18677C21.3959 6.08705 21.0846 4.77792 20.1534 3.84664C19.2221 2.91537 17.9129 2.60406 15.8132 2.5M15.8132 21.5C17.9129 21.3959 19.2221 21.0846 20.1534 20.1534C21.0846 19.2221 21.3959 17.9129 21.5 15.8132M8.18676 21.5C6.08705 21.3959 4.77792 21.0846 3.84664 20.1534C2.91537 19.2221 2.60406 17.9129 2.5 15.8132" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                <Path d="M2.5 12H21.5" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" />
                             </Svg>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -179,8 +195,8 @@ export default function HomeScreen(): React.ReactElement {
                         >
                             {/* Bell icon */}
                             <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                                <Path d="M2.52992 14.7696C2.31727 16.1636 3.268 17.1312 4.43205 17.6134C8.89481 19.4622 15.1052 19.4622 19.5679 17.6134C20.732 17.1312 21.6827 16.1636 21.4701 14.7696C21.3394 13.9129 20.6932 13.1995 20.2144 12.5029C19.5873 11.5793 19.525 10.5718 19.5249 9.5C19.5249 5.35786 16.1559 2 12 2C7.84413 2 4.47513 5.35786 4.47513 9.5C4.47503 10.5718 4.41272 11.5793 3.78561 12.5029C3.30684 13.1995 2.66061 13.9129 2.52992 14.7696Z" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                                <Path d="M8 19C8.45849 20.7252 10.0755 22 12 22C13.9245 22 15.5415 20.7252 16 19" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                <Path d="M2.52992 14.7696C2.31727 16.1636 3.268 17.1312 4.43205 17.6134C8.89481 19.4622 15.1052 19.4622 19.5679 17.6134C20.732 17.1312 21.6827 16.1636 21.4701 14.7696C21.3394 13.9129 20.6932 13.1995 20.2144 12.5029C19.5873 11.5793 19.525 10.5718 19.5249 9.5C19.5249 5.35786 16.1559 2 12 2C7.84413 2 4.47513 5.35786 4.47513 9.5C4.47503 10.5718 4.41272 11.5793 3.78561 12.5029C3.30684 13.1995 2.66061 13.9129 2.52992 14.7696Z" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                <Path d="M8 19C8.45849 20.7252 10.0755 22 12 22C13.9245 22 15.5415 20.7252 16 19" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                             </Svg>
                             {unreadCount > 0 && (
                                 <View style={styles.badge}>
@@ -195,16 +211,18 @@ export default function HomeScreen(): React.ReactElement {
 
                 {/* Balance Card (includes quick actions) */}
                 {dashboard.isError ? (
-                    <TouchableOpacity style={styles.errorCard} onPress={() => dashboard.refetch()} activeOpacity={0.7}>
-                        <Text style={styles.errorTitle}>Unable to load balance</Text>
-                        <Text style={styles.errorSubtitle}>Tap to retry</Text>
-                    </TouchableOpacity>
+                    <ErrorState
+                        title="Unable to load balance"
+                        description="Pull to refresh or try again to restore your latest wallet snapshot."
+                        onAction={() => dashboard.refetch()}
+                        style={styles.dashboardError}
+                    />
                 ) : (
                     <BalanceCard
                         totalBalance={formattedTotal}
                         isHidden={balanceHidden}
-                        onAddPress={() => {}}
-                        onSwapPress={() => {}}
+                        onAddPress={() => navigation.navigate('Deposit')}
+                        onSwapPress={() => navigation.navigate('FXSwap')}
                         onCashBalancePress={() => setBalanceSheetVisible(true)}
                     />
                 )}
@@ -235,12 +253,12 @@ export default function HomeScreen(): React.ReactElement {
                 {activeTab === 'assets' && (
                     <View style={styles.sortRow}>
                         <TouchableOpacity style={styles.sortBtn} activeOpacity={0.6} onPress={() => setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'))}>
-                            <HugeiconsIcon icon={FilterHorizontalFreeIcons} size={18} color="rgba(0, 0, 0, 0.20)" />
+                            <HugeiconsIcon icon={FilterHorizontalFreeIcons} size={ui.iconSize.sm} color={colors.textSecondary} />
                             <Text style={styles.sortText}>{sortOrder === 'desc' ? 'Descend' : 'Ascend'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.sortBtn} activeOpacity={0.6} onPress={cycleAssetType}>
                             <Text style={styles.sortText}>{assetTypeFilter.charAt(0).toUpperCase() + assetTypeFilter.slice(1)}</Text>
-                            <HugeiconsIcon icon={ArrowDown01FreeIcons} size={14} color="rgba(0, 0, 0, 0.20)" />
+                            <HugeiconsIcon icon={ArrowDown01FreeIcons} size={spacing.base} color={colors.textSecondary} />
                         </TouchableOpacity>
                     </View>
                 )}
@@ -264,14 +282,14 @@ export default function HomeScreen(): React.ReactElement {
                                 />
                             ))
                         ) : (
-                            <View style={styles.emptyState}>
-                                <Image
-                                    source={require('@assets/images/branding/logo_gradient_icon.png')}
-                                    style={styles.emptyIcon}
-                                    resizeMode="contain"
-                                />
-                                <Text style={styles.emptyText}>No Records</Text>
-                            </View>
+                            <EmptyState
+                                title="No assets available"
+                                description="Your available balances will appear here once funds arrive."
+                                imageSource={EMPTY_STATE_IMAGE}
+                                style={styles.emptyStateBlock}
+                                actionLabel="Add funds"
+                                onAction={goToDeposit}
+                            />
                         )}
                     </View>
                 )}
@@ -282,9 +300,9 @@ export default function HomeScreen(): React.ReactElement {
                             <View style={styles.accountIconWrap}>
                                 {/* Save money dollar icon */}
                                 <Svg width={30} height={30} viewBox="0 0 30 30" fill="none">
-                                    <Path d="M24.6816 16.25C25.6702 14.8327 26.25 13.1091 26.25 11.25C26.25 6.41751 22.3325 2.5 17.5 2.5C12.6675 2.5 8.75 6.41751 8.75 11.25C8.75 12.592 9.05211 13.8634 9.59204 15" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-                                    <Path d="M17.5 7.5C16.1193 7.5 15 8.33947 15 9.375C15 10.4105 16.1193 11.25 17.5 11.25C18.8807 11.25 20 12.0895 20 13.125C20 14.1605 18.8807 15 17.5 15M17.5 7.5C18.5885 7.5 19.5145 8.02175 19.8577 8.75M17.5 7.5V6.25M17.5 15C16.4115 15 15.4855 14.4782 15.1423 13.75M17.5 15V16.25" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" />
-                                    <Path d="M3.75 17.5H6.74352C7.11121 17.5 7.47385 17.5828 7.80271 17.742L10.3552 18.9769C10.684 19.1361 11.0467 19.2189 11.4144 19.2189H12.7177C13.9782 19.2189 15 20.2077 15 21.4275C15 21.4768 14.9662 21.5201 14.9172 21.5337L11.7411 22.4118C11.1713 22.5693 10.5612 22.5145 10.0312 22.258L7.30263 20.9378M15 20.625L20.741 18.8611C21.7587 18.544 22.8588 18.92 23.4964 19.8029C23.9573 20.4412 23.7696 21.3552 23.0981 21.7427L13.7036 27.1632C13.1061 27.5079 12.4012 27.592 11.7439 27.397L3.75 25.0249" stroke="#242424" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                    <Path d="M24.6816 16.25C25.6702 14.8327 26.25 13.1091 26.25 11.25C26.25 6.41751 22.3325 2.5 17.5 2.5C12.6675 2.5 8.75 6.41751 8.75 11.25C8.75 12.592 9.05211 13.8634 9.59204 15" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                    <Path d="M17.5 7.5C16.1193 7.5 15 8.33947 15 9.375C15 10.4105 16.1193 11.25 17.5 11.25C18.8807 11.25 20 12.0895 20 13.125C20 14.1605 18.8807 15 17.5 15M17.5 7.5C18.5885 7.5 19.5145 8.02175 19.8577 8.75M17.5 7.5V6.25M17.5 15C16.4115 15 15.4855 14.4782 15.1423 13.75M17.5 15V16.25" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" />
+                                    <Path d="M3.75 17.5H6.74352C7.11121 17.5 7.47385 17.5828 7.80271 17.742L10.3552 18.9769C10.684 19.1361 11.0467 19.2189 11.4144 19.2189H12.7177C13.9782 19.2189 15 20.2077 15 21.4275C15 21.4768 14.9662 21.5201 14.9172 21.5337L11.7411 22.4118C11.1713 22.5693 10.5612 22.5145 10.0312 22.258L7.30263 20.9378M15 20.625L20.741 18.8611C21.7587 18.544 22.8588 18.92 23.4964 19.8029C23.9573 20.4412 23.7696 21.3552 23.0981 21.7427L13.7036 27.1632C13.1061 27.5079 12.4012 27.592 11.7439 27.397L3.75 25.0249" stroke={colors.textPrimary} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                                 </Svg>
                             </View>
                             <View style={styles.accountInfo}>
@@ -301,11 +319,11 @@ export default function HomeScreen(): React.ReactElement {
                             </View>
                         </View>
                         <View style={styles.accountRow}>
-                            <View style={[styles.accountIconWrap, { backgroundColor: '#01CA47' }]}>
+                            <View style={[styles.accountIconWrap, { backgroundColor: colors.primary }]}>
                                 {/* Earning+ icon — dollar sign (white on green) */}
                                 <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                                    <Path d="M18.4167 8.14815C18.4167 5.85719 15.5438 4 12 4C8.45617 4 5.58333 5.85719 5.58333 8.14815C5.58333 10.4391 7.33333 11.7037 12 11.7037C16.6667 11.7037 19 12.8889 19 15.8519C19 18.8148 15.866 20 12 20C8.13401 20 5 18.1428 5 15.8519" stroke="#F4F4F4" strokeWidth={1.5} strokeLinecap="round" />
-                                    <Path d="M12 2V22" stroke="#F4F4F4" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                                    <Path d="M18.4167 8.14815C18.4167 5.85719 15.5438 4 12 4C8.45617 4 5.58333 5.85719 5.58333 8.14815C5.58333 10.4391 7.33333 11.7037 12 11.7037C16.6667 11.7037 19 12.8889 19 15.8519C19 18.8148 15.866 20 12 20C8.13401 20 5 18.1428 5 15.8519" stroke={colors.textInverse} strokeWidth={1.5} strokeLinecap="round" />
+                                    <Path d="M12 2V22" stroke={colors.textInverse} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
                                 </Svg>
                             </View>
                             <View style={styles.accountInfo}>
@@ -326,7 +344,9 @@ export default function HomeScreen(): React.ReactElement {
 
                 {activeTab === 'activity' && (
                     <View style={styles.activitySection}>
-                        {transactions.data?.transactions?.length ? (
+                        {transactions.isPending ? (
+                            <TransactionListSkeleton rows={4} />
+                        ) : transactions.data?.transactions?.length ? (
                             transactions.data.transactions.map((tx) => (
                                 <TransactionRow
                                     key={tx.id}
@@ -338,18 +358,37 @@ export default function HomeScreen(): React.ReactElement {
                                     timestamp={tx.timestamp}
                                     status={tx.status}
                                     isHidden={balanceHidden}
-                                    onPress={() => navigation.navigate('TransactionDetail', { id: tx.id })}
+                                    onPress={() => navigation.navigate('TransactionDetail', {
+                                        id: tx.id,
+                                        type: tx.type,
+                                        status: tx.status,
+                                        amount: tx.amount,
+                                        fee: tx.fee,
+                                        currency: tx.currency,
+                                        from: tx.from,
+                                        to: tx.to,
+                                        timestamp: tx.timestamp,
+                                        reference: tx.reference,
+                                        notes: tx.notes,
+                                    })}
                                 />
                             ))
+                        ) : transactions.isError ? (
+                            <ErrorState
+                                title="Unable to load activity"
+                                description="Pull to refresh or try again to fetch the latest transaction history."
+                                onAction={() => transactions.refetch()}
+                                style={styles.emptyStateBlock}
+                            />
                         ) : (
-                            <View style={styles.emptyState}>
-                                <Image
-                                    source={require('@assets/images/branding/logo_gradient_icon.png')}
-                                    style={styles.emptyIcon}
-                                    resizeMode="contain"
-                                />
-                                <Text style={styles.emptyText}>No Records</Text>
-                            </View>
+                            <EmptyState
+                                title="No activity yet"
+                                description="Completed transfers, deposits, and swaps will show up here."
+                                imageSource={EMPTY_STATE_IMAGE}
+                                style={styles.emptyStateBlock}
+                                actionLabel="Send money"
+                                onAction={goToSendTab}
+                            />
                         )}
                     </View>
                 )}
@@ -358,8 +397,14 @@ export default function HomeScreen(): React.ReactElement {
             <BalanceFilterSheet
                 visible={balanceSheetVisible}
                 onClose={() => setBalanceSheetVisible(false)}
-                currency="US Dollar"
-                onConfirm={(display) => setDisplayMode(display)}
+                currency={currency}
+                initialDisplay={displayMode}
+                initialType={assetTypeFilter}
+                onConfirm={(display, type, newCurrency) => {
+                    setDisplayMode(display);
+                    setAssetTypeFilter(type);
+                    setCurrency(newCurrency as Parameters<typeof setCurrency>[0]);
+                }}
             />
         </SafeAreaView>
     );
@@ -381,12 +426,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 15,
-        paddingVertical: 10,
+        paddingHorizontal: spacing.base,
+        paddingVertical: spacing.md,
     },
     flagWrap: {
-        width: 30,
-        height: 30,
+        width: spacing.xxl,
+        height: spacing.xxl,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -398,10 +443,14 @@ const styles = StyleSheet.create({
     headerRight: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 21,
+        gap: spacing.base,
     },
     headerBtn: {
         position: 'relative',
+        width: spacing.xxxl,
+        height: spacing.xxxl,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     badge: {
         position: 'absolute',
@@ -421,63 +470,49 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     // Error
-    errorCard: {
-        marginHorizontal: 15,
-        backgroundColor: colors.cardBackground,
-        borderRadius: 21,
-        padding: spacing.xl,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#F0F0F0',
-    },
-    errorTitle: {
-        ...typography.h4,
-        color: '#242424',
-    },
-    errorSubtitle: {
-        ...typography.bodySm,
-        color: colors.primary,
-        marginTop: spacing.xs,
+    dashboardError: {
+        marginHorizontal: spacing.base,
+        paddingVertical: spacing.xl,
     },
     // Tabs
     tabContainer: {
         flexDirection: 'row',
-        marginHorizontal: 15,
-        marginTop: spacing.lg,
-        gap: 8,
+        marginHorizontal: spacing.base,
+        marginTop: ui.sectionSpacing,
+        gap: spacing.sm,
     },
     tab: {
         flex: 1,
-        paddingVertical: 10,
+        minHeight: ui.buttonHeight,
         alignItems: 'center',
-        borderRadius: 380,
+        justifyContent: 'center',
+        borderRadius: ui.radius.pill,
     },
     tabActive: {
-        backgroundColor: '#242424',
+        backgroundColor: colors.buttonPrimary,
     },
     tabInactive: {
         borderWidth: 1,
-        borderColor: '#E8E8E8',
+        borderColor: colors.border,
     },
     tabText: {
-        fontSize: 14,
-        fontWeight: '500',
-        lineHeight: 21,
+        ...typography.bodyMd,
+        fontWeight: '600',
     },
     tabTextActive: {
-        color: '#E8E8E8',
+        color: colors.textInverse,
     },
     tabTextInactive: {
-        color: '#B2B2B2',
+        color: colors.textSecondary,
     },
     // Sort
     sortRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 15,
-        marginTop: spacing.lg,
-        marginBottom: 11,
+        paddingHorizontal: spacing.base,
+        marginTop: ui.sectionSpacing,
+        marginBottom: spacing.md,
     },
     sortBtn: {
         flexDirection: 'row',
@@ -485,19 +520,21 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     sortText: {
-        fontSize: 12,
+        ...typography.bodySm,
         fontWeight: '500',
-        color: 'rgba(0, 0, 0, 0.20)',
-        lineHeight: 18,
+        color: colors.textSecondary,
     },
     // List
     listSection: {
-        paddingHorizontal: 15,
-        gap: 10,
+        paddingHorizontal: spacing.base,
+        gap: spacing.sm + spacing.xs,
     },
     activitySection: {
-        paddingHorizontal: 15,
-        gap: 30,
+        paddingHorizontal: spacing.base,
+        gap: ui.sectionSpacing + spacing.sm,
+    },
+    emptyStateBlock: {
+        paddingVertical: spacing.massive,
     },
     emptyState: {
         paddingVertical: 80,
@@ -521,18 +558,18 @@ const styles = StyleSheet.create({
     accountRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        borderRadius: 13,
+        gap: spacing.md,
+        borderRadius: ui.radius.card,
         borderWidth: 0.5,
-        borderColor: '#E8E8E8',
-        paddingHorizontal: 12,
-        paddingVertical: 14,
+        borderColor: colors.border,
+        paddingHorizontal: ui.cardPadding,
+        paddingVertical: spacing.md,
     },
     accountIconWrap: {
         width: 55,
         height: 55,
         borderRadius: 678,
-        backgroundColor: '#D9F7E3',
+        backgroundColor: colors.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -553,26 +590,26 @@ const styles = StyleSheet.create({
     accountName: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#242424',
+        color: colors.textPrimary,
         lineHeight: 24,
     },
     accountSubtext: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#B2B2B2',
+        color: colors.textSecondary,
         lineHeight: 19.2,
     },
     accountBalance: {
         fontSize: 26,
         fontWeight: '700',
-        color: 'rgba(0, 0, 0, 0.20)',
+        color: colors.textSecondary,
         lineHeight: 31.2,
         textAlign: 'right',
     },
     accountCustody: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#B2B2B2',
+        color: colors.textSecondary,
         lineHeight: 16.8,
         textAlign: 'right',
     },

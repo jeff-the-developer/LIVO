@@ -19,6 +19,7 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { RootNavigatorParamList } from "@app-types/navigation.types";
 import { useSetupPIN, handleApiError } from '@hooks/api/useAuth';
+import PINInput from '@components/common/PINInput';
 
 type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
 
@@ -49,9 +50,7 @@ export default function PINSetupScreen(): React.ReactElement {
             try {
                 setError(null);
                 await setupMutation.mutateAsync({ pin: confirmCode });
-                
-                // Onboarding complete, navigate to MainTabs safely
-                navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+                // `useSetupPIN` sets `pin_enabled: true` → AppNavigator swaps to AppStack (no reset here)
             } catch (err) {
                 const e = handleApiError(err);
                 setError(e.message);
@@ -128,10 +127,11 @@ export default function PINSetupScreen(): React.ReactElement {
                             setPin2(Array(PIN_LENGTH).fill(''));
                         } else {
                             // During onboarding, we shouldn't necessarily let them go back to unverified states
-                            Alert.alert('Skip PIN setup?', 'A PIN keeps your transactions secure.', [
-                                { text: 'Cancel', style: 'cancel' },
-                                { text: 'Skip', style: 'default', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] }) }
-                            ]);
+                            Alert.alert(
+                                'PIN required',
+                                'A transaction PIN is required to finish setting up your account.',
+                                [{ text: 'OK', style: 'default' }],
+                            );
                         }
                     }}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -153,30 +153,12 @@ export default function PINSetupScreen(): React.ReactElement {
 
             {/* OTP Boxes */}
             <View style={styles.otpRow}>
-                {digits.map((d, i) => {
-                    const isFocused = i === filledCount && !error;
-                    const hasError = !!error && filledCount === 0;
-                    return (
-                        <View
-                            key={i}
-                            style={[
-                                styles.otpBox,
-                                isFocused && styles.otpBoxFocused,
-                                d !== '' && styles.otpBoxFilled,
-                                hasError && styles.otpBoxError,
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.otpDigit,
-                                    hasError && styles.otpDigitError,
-                                ]}
-                            >
-                                {d !== '' ? '•' : ''}
-                            </Text>
-                        </View>
-                    );
-                })}
+                <PINInput
+                    digits={digits}
+                    activeIndex={filledCount}
+                    isError={!!error && filledCount === 0}
+                    dashAfter={-1}
+                />
             </View>
 
             {/* Error Message */}
@@ -265,42 +247,9 @@ const styles = StyleSheet.create({
 
     // OTP Boxes
     otpRow: {
-        flexDirection: 'row',
         justifyContent: 'center',
-        alignItems: 'center',
         marginTop: spacing.xl,
-        gap: spacing.sm,
         paddingHorizontal: spacing.base,
-    },
-    otpBox: {
-        width: 44,
-        height: 52,
-        borderWidth: 1.5,
-        borderColor: colors.border,
-        borderRadius: borderRadius.input,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.background,
-    },
-    otpBoxFocused: {
-        borderColor: colors.primary,
-    },
-    otpBoxFilled: {
-        borderColor: colors.textPrimary,
-        backgroundColor: colors.surfaceAlt,
-    },
-    otpBoxError: {
-        borderColor: colors.error,
-        backgroundColor: '#FEE2E2',
-    },
-    otpDigit: {
-        ...typography.h2,
-        color: colors.textPrimary,
-        lineHeight: 32, // to vertically center the big dot
-        marginTop: Platform.OS === 'ios' ? 4 : 0, 
-    },
-    otpDigitError: {
-        color: colors.error,
     },
 
     // Status

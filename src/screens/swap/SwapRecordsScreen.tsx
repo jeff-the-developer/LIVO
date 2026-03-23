@@ -4,15 +4,25 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
+    ScrollView,
+    RefreshControl,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import { ArrowLeft01FreeIcons } from '@hugeicons/core-free-icons';
 import { colors } from '@theme/colors';
+import type { AppStackParamList } from '@app-types/navigation.types';
+import { useTransactions } from '@hooks/api/useTransactions';
+import TransactionRow from '@components/transactions/TransactionRow';
+
+type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 export default function SwapRecordsScreen(): React.ReactElement {
-    const navigation = useNavigation();
+    const navigation = useNavigation<Nav>();
+    const swaps = useTransactions({ type: 'swap', page: 1, limit: 50 });
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -25,15 +35,53 @@ export default function SwapRecordsScreen(): React.ReactElement {
                 <View style={styles.backBtn} />
             </View>
 
-            {/* Empty State */}
-            <View style={styles.emptyContainer}>
-                <View style={styles.logoWrap}>
-                    <View style={styles.logoBox}>
-                        <Text style={styles.logoText}>L</Text>
+            <ScrollView
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={swaps.isRefetching} onRefresh={() => swaps.refetch()} />
+                }
+            >
+                {swaps.data?.transactions?.length ? (
+                    swaps.data.transactions.map((tx) => (
+                        <TransactionRow
+                            key={tx.id}
+                            type={tx.type}
+                            from={tx.from}
+                            to={tx.to}
+                            amount={tx.amount}
+                            currency={tx.currency}
+                            timestamp={tx.timestamp}
+                            status={tx.status}
+                            isHidden={false}
+                            onPress={() => navigation.navigate('TransactionDetail', {
+                                id: tx.id,
+                                type: tx.type,
+                                status: tx.status,
+                                amount: tx.amount,
+                                fee: tx.fee,
+                                currency: tx.currency,
+                                from: tx.from,
+                                to: tx.to,
+                                timestamp: tx.timestamp,
+                                reference: tx.reference,
+                                notes: tx.notes,
+                            })}
+                        />
+                    ))
+                ) : (
+                    <View style={styles.emptyContainer}>
+                        <Image
+                            source={require('@assets/images/branding/logo_gradient_icon.png')}
+                            style={styles.emptyIcon}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.emptyText}>
+                            {swaps.isLoading ? 'Loading...' : 'No Records'}
+                        </Text>
                     </View>
-                </View>
-                <Text style={styles.emptyText}>No Records</Text>
-            </View>
+                )}
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -61,27 +109,23 @@ const styles = StyleSheet.create({
         color: '#242424',
         lineHeight: 24,
     },
+    content: {
+        paddingHorizontal: 15,
+        paddingTop: 10,
+        gap: 30,
+        flexGrow: 1,
+    },
     emptyContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
         paddingBottom: 80,
+        gap: 16,
     },
-    logoWrap: {
-        marginBottom: 20,
-    },
-    logoBox: {
-        width: 80,
-        height: 80,
-        borderRadius: 20,
-        backgroundColor: '#01CA47',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    logoText: {
-        fontSize: 40,
-        fontWeight: '700',
-        color: 'white',
+    emptyIcon: {
+        width: 100,
+        height: 100,
+        borderRadius: 24,
     },
     emptyText: {
         fontSize: 16,

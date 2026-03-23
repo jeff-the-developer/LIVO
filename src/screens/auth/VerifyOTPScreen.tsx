@@ -17,6 +17,7 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { RootNavigatorParamList } from "@app-types/navigation.types";
 import { useVerifyOTP, useResendOTP, handleApiError } from '@hooks/api/useAuth';
+import OTPInput from '@components/common/OTPInput';
 
 type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
 type RouteProps = NativeStackScreenProps<RootNavigatorParamList, 'VerifyOTP'>['route'];
@@ -72,6 +73,7 @@ export default function VerifyOTPScreen(): React.ReactElement {
                     navigation.navigate('SetPassword', {
                         mode: 'register',
                         identifier,
+                        userId: result.data.user_id,
                     });
                 } else if (mode === 'forgot-password') {
                     navigation.navigate('SetPassword', {
@@ -179,33 +181,12 @@ export default function VerifyOTPScreen(): React.ReactElement {
 
             {/* OTP Boxes */}
             <View style={styles.otpRow}>
-                {digits.map((d, i) => {
-                    const isFocused = i === filledCount && !error;
-                    const hasError = !!error && filledCount === 0;
-                    return (
-                        <React.Fragment key={i}>
-                            {i === 3 && <Text style={styles.otpDash}>-</Text>}
-                            <View
-                                style={[
-                                    styles.otpBox,
-                                    isFocused && styles.otpBoxFocused,
-                                    d !== '' && styles.otpBoxFilled,
-                                    hasError && styles.otpBoxError,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.otpDigit,
-                                        d !== '' && styles.otpDigitFilled,
-                                        hasError && styles.otpDigitError,
-                                    ]}
-                                >
-                                    {d}
-                                </Text>
-                            </View>
-                        </React.Fragment>
-                    );
-                })}
+                <OTPInput
+                    digits={digits}
+                    activeIndex={filledCount}
+                    isError={!!error && filledCount === 0}
+                    dashAfter={2}
+                />
             </View>
 
             {/* Error / Resend */}
@@ -302,49 +283,9 @@ const styles = StyleSheet.create({
 
     // OTP Boxes
     otpRow: {
-        flexDirection: 'row',
         justifyContent: 'center',
-        alignItems: 'center',
         marginTop: spacing.xl,
-        gap: spacing.xs,
         paddingHorizontal: spacing.base,
-    },
-    otpDash: {
-        ...typography.h3,
-        color: colors.textMuted,
-        marginHorizontal: spacing.xs,
-    },
-    otpBox: {
-        width: 44,
-        height: 52,
-        borderWidth: 1.5,
-        borderColor: colors.border,
-        borderRadius: borderRadius.input,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.background,
-    },
-    otpBoxFocused: {
-        borderColor: colors.primary,
-    },
-    otpBoxFilled: {
-        borderColor: colors.textPrimary,
-        backgroundColor: colors.surfaceAlt,
-    },
-    otpBoxError: {
-        borderColor: colors.error,
-        backgroundColor: '#FEE2E2',
-    },
-    otpDigit: {
-        ...typography.h3,
-        color: colors.textPrimary,
-        fontWeight: '700',
-    },
-    otpDigitFilled: {
-        color: colors.textPrimary,
-    },
-    otpDigitError: {
-        color: colors.error,
     },
 
     // Status

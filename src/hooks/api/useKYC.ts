@@ -9,11 +9,11 @@ import {
     submitKYCLevel2,
     submitKYCLevel3,
     getCountries,
+    deriveKYCStatusFromOverview,
     type KYCLevel1IndividualPayload,
     type KYCLevel1CorporatePayload,
     type KYCLevel2Payload,
     type KYCLevel3Payload,
-    type KYCStatusResult,
 } from '@api/kyc';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
@@ -38,16 +38,7 @@ export function useKYCStatus() {
     return useQuery({
         queryKey: kycKeys.overview,
         queryFn: getKYCOverview,
-        select: (data): KYCStatusResult => {
-            const overview = data.data;
-            const currentTier = overview.levels.find(
-                (l) => l.level === overview.current_level,
-            );
-            return {
-                level: overview.current_level,
-                status: currentTier?.completed ? 'approved' : 'pending',
-            };
-        },
+        select: (data) => deriveKYCStatusFromOverview(data.data),
     });
 }
 

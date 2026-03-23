@@ -1,6 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { CurrencyIcon } from '@components/icons/CurrencyIcons';
+import { colors } from '@theme/colors';
+import { spacing } from '@theme/spacing';
+import { typography } from '@theme/typography';
+import { ui } from '@theme/ui';
 
 interface AssetRowProps {
     symbol: string;
@@ -30,10 +34,17 @@ export default function AssetRow({
     const changeDisplay = isPositive ? `+${change24h}%` : `${change24h}%`;
 
     return (
-        <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.6} disabled={!onPress}>
+        <Pressable
+            style={({ pressed }) => [
+                styles.card,
+                pressed && onPress && styles.cardPressed,
+            ]}
+            onPress={onPress}
+            disabled={!onPress}
+        >
             {/* Icon */}
             <View style={styles.iconWrap}>
-                <CurrencyIcon symbol={symbol} size={40} />
+                <CurrencyIcon symbol={symbol} size={ui.pickerRowIcon} iconUrl={iconUrl} />
             </View>
 
             {/* Content */}
@@ -62,7 +73,7 @@ export default function AssetRow({
                     </Text>
                 </View>
             </View>
-        </TouchableOpacity>
+        </Pressable>
     );
 }
 
@@ -70,16 +81,21 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        height: 78,
-        borderRadius: 13,
-        borderWidth: 0.5,
-        borderColor: '#E8E8E8',
-        paddingHorizontal: 12,
-        gap: 12,
+        minHeight: 78,
+        borderRadius: ui.radius.card,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.border,
+        paddingHorizontal: spacing.base,
+        gap: spacing.sm + spacing.xs,
+        backgroundColor: colors.background,
+    },
+    cardPressed: {
+        backgroundColor: colors.surface,
+        opacity: 0.96,
     },
     iconWrap: {
-        width: 55,
-        height: 55,
+        width: ui.pickerRowIcon + spacing.md,
+        height: ui.pickerRowIcon + spacing.md,
         borderRadius: 100,
         alignItems: 'center',
         justifyContent: 'center',
@@ -95,16 +111,15 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     name: {
-        fontSize: 16,
+        ...typography.bodyMd,
         fontWeight: '500',
-        color: '#242424',
-        lineHeight: 24,
+        color: colors.textPrimary,
         flex: 1,
     },
     balance: {
         fontSize: 30,
         fontWeight: '600',
-        color: 'rgba(0, 0, 0, 0.20)',
+        color: colors.textMuted,
         lineHeight: 37.5,
         textAlign: 'right',
     },
@@ -119,10 +134,9 @@ const styles = StyleSheet.create({
         gap: 5,
     },
     price: {
-        fontSize: 16,
+        ...typography.bodyMd,
         fontWeight: '600',
-        color: 'rgba(0, 0, 0, 0.20)',
-        lineHeight: 24,
+        color: colors.textMuted,
     },
     change: {
         fontSize: 16,
@@ -136,10 +150,9 @@ const styles = StyleSheet.create({
         color: '#FF5A5A',
     },
     usdValue: {
-        fontSize: 14,
+        ...typography.caption,
         fontWeight: '700',
-        color: 'rgba(0, 0, 0, 0.20)',
-        lineHeight: 16.8,
+        color: colors.textMuted,
         textAlign: 'right',
     },
 });

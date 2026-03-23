@@ -20,32 +20,24 @@ import {
     Atm01FreeIcons,
     CloudFreeIcons,
 } from '@hugeicons/core-free-icons';
-import { colors } from '@theme/colors';
+import { colors, palette } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import { useCards, useCardTransactions, useFreezeCard, useUnfreezeCard } from '@hooks/api/useCards';
 import BottomSheet from '@components/common/BottomSheet';
+import TransactionStatus from '@components/transactions/TransactionStatus';
 import type { Card, CardTransaction, TransactionIconType } from '@api/cards';
 import OrderFilterSheet from './OrderFilterSheet';
 
 // ─── Card Hero Image ──────────────────────────────────────────────────────────
 // ─── Transaction Icon Colors ──────────────────────────────────────────────────
 const TXN_ICON_CONFIG: Record<TransactionIconType, { bg: string; color: string; icon: any }> = {
-    lock: { bg: '#F0FFF4', color: '#1DB954', icon: ShoppingBag01FreeIcons },
-    download: { bg: '#FFF0F0', color: '#FF5A5F', icon: ArrowUp01FreeIcons },
-    atm: { bg: '#F0FFF4', color: '#1DB954', icon: Atm01FreeIcons },
-    alert: { bg: '#FFF0F0', color: '#FF5A5F', icon: CloudFreeIcons },
-    upload: { bg: '#F0FFF4', color: '#1DB954', icon: ArrowDown01FreeIcons },
-};
-
-// ─── Transaction Status Colors ────────────────────────────────────────────────
-const STATUS_COLOR: Record<string, string> = {
-    Pending: colors.textMuted,
-    Executed: colors.textMuted,
-    Settled: colors.textMuted,
-    Rejected: '#FF5A5F',
-    Refunded: colors.textMuted,
+    lock: { bg: palette.green50, color: colors.success, icon: ShoppingBag01FreeIcons },
+    download: { bg: palette.redLight, color: colors.error, icon: ArrowUp01FreeIcons },
+    atm: { bg: palette.green50, color: colors.success, icon: Atm01FreeIcons },
+    alert: { bg: palette.redLight, color: colors.error, icon: CloudFreeIcons },
+    upload: { bg: palette.green50, color: colors.success, icon: ArrowDown01FreeIcons },
 };
 
 // ─── Balance Type ─────────────────────────────────────────────────────────────
@@ -146,9 +138,7 @@ function TransactionRow({ txn }: { txn: CardTransaction }) {
             {/* Amount + Status */}
             <View style={s.txnRight}>
                 <Text style={s.txnAmount}>{amountStr}</Text>
-                <Text style={[s.txnStatus, { color: STATUS_COLOR[txn.status] ?? colors.textMuted }]}>
-                    {txn.status}
-                </Text>
+                <TransactionStatus status={txn.status} domain="card" />
             </View>
         </View>
     );

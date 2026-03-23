@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, View, Text, StyleSheet, ImageSourcePropType } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 // ─── Country Flag Icons (local assets) ──────────────────────────────────────
 // Production-grade: all flags bundled as @1x/@2x/@3x PNGs for crisp rendering.
@@ -96,9 +97,11 @@ interface FlagIconProps {
     /** ISO country code (US, GB) or currency code (USD, GBP) */
     code: string;
     size?: number;
+    /** When no bundled PNG exists, show API-provided emoji (e.g. country picker). */
+    fallbackEmoji?: string;
 }
 
-export function FlagIcon({ code, size = 28 }: FlagIconProps): React.ReactElement {
+export function FlagIcon({ code, size = 28, fallbackEmoji }: FlagIconProps): React.ReactElement {
     const upper = code.toUpperCase();
     const countryCode = CURRENCY_TO_COUNTRY[upper] ?? upper;
     const source = FLAG_ICONS[countryCode];
@@ -113,12 +116,23 @@ export function FlagIcon({ code, size = 28 }: FlagIconProps): React.ReactElement
         );
     }
 
-    // Fallback: initials in grey circle
+    if (fallbackEmoji) {
+        return (
+            <View
+                style={[
+                    styles.emojiFallback,
+                    { width: size, height: size, borderRadius: size / 2 },
+                ]}
+            >
+                <Text style={{ fontSize: size * 0.55 }}>{fallbackEmoji}</Text>
+            </View>
+        );
+    }
+
+    // Clean fallback: globe glyph (no letter placeholders)
     return (
-        <View style={[styles.cryptoFallback, { width: size, height: size, borderRadius: size / 2 }]}>
-            <Text style={[styles.cryptoFallbackText, { fontSize: size * 0.35 }]}>
-                {countryCode.substring(0, 2)}
-            </Text>
+        <View style={[styles.genericIconWrap, { width: size, height: size, borderRadius: size / 2 }]}>
+            <MaterialCommunityIcons name="earth" size={size * 0.55} color="#6E6E6E" />
         </View>
     );
 }
@@ -130,6 +144,7 @@ export function FlagIcon({ code, size = 28 }: FlagIconProps): React.ReactElement
 const CRYPTO_ICONS: Record<string, ImageSourcePropType> = {
     BTC: require('@assets/images/icons/crypto_icon/Bitcoin (BTC).png'),
     ETH: require('@assets/images/icons/crypto_icon/Ethereum (ETH).png'),
+    TRX: require('@assets/images/icons/crypto_icon/TRON (TRX).png'),
     USDT: require('@assets/images/icons/crypto_icon/Tether (USDT).png'),
     USDC: require('@assets/images/icons/crypto_icon/USD Coin (USDC).png'),
     BNB: require('@assets/images/icons/crypto_icon/Binance Coin (BNB).png'),
@@ -154,14 +169,50 @@ const CRYPTO_ICONS: Record<string, ImageSourcePropType> = {
     ZRX: require('@assets/images/icons/crypto_icon/0x (ZRX).png'),
 };
 
+/**
+ * Map API/wallet symbols to bundled icon keys when naming differs.
+ * Keep in sync with `dashboard.assets[].symbol` and swap/send payloads from the backend.
+ */
+const CRYPTO_SYMBOL_ALIASES: Record<string, string> = {
+    POL: 'MATIC',
+    MATIC: 'MATIC',
+    WMATIC: 'MATIC',
+    WBTC: 'BTC',
+    WETH: 'ETH',
+    STETH: 'ETH',
+    WEETH: 'ETH',
+    'USDC.E': 'USDC',
+    USDCE: 'USDC',
+    USDBC: 'USDC',
+};
+
 interface CryptoIconProps {
     /** Token symbol (BTC, ETH, USDT, etc.) */
     symbol: string;
     size?: number;
+    /** Remote icon from wallet API — preferred when present */
+    iconUrl?: string;
 }
 
-export function CryptoIcon({ symbol, size = 32 }: CryptoIconProps): React.ReactElement {
-    const source = CRYPTO_ICONS[symbol.toUpperCase()];
+function isHttpUrl(url: string): boolean {
+    const t = url.trim();
+    return /^https?:\/\//i.test(t);
+}
+
+export function CryptoIcon({ symbol, size = 32, iconUrl }: CryptoIconProps): React.ReactElement {
+    if (iconUrl && isHttpUrl(iconUrl)) {
+        return (
+            <Image
+                source={{ uri: iconUrl.trim() }}
+                style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#F0F0F0' }}
+                resizeMode="cover"
+            />
+        );
+    }
+
+    const upper = symbol.toUpperCase();
+    const key = CRYPTO_SYMBOL_ALIASES[upper] ?? upper;
+    const source = CRYPTO_ICONS[key];
 
     if (source) {
         return (
@@ -173,12 +224,10 @@ export function CryptoIcon({ symbol, size = 32 }: CryptoIconProps): React.ReactE
         );
     }
 
-    // Fallback: first 2 letters in a colored circle
+    // Clean fallback: stacked-coins glyph (no initials)
     return (
-        <View style={[styles.cryptoFallback, { width: size, height: size, borderRadius: size / 2 }]}>
-            <Text style={[styles.cryptoFallbackText, { fontSize: size * 0.35 }]}>
-                {symbol.substring(0, 2).toUpperCase()}
-            </Text>
+        <View style={[styles.genericIconWrap, { width: size, height: size, borderRadius: size / 2 }]}>
+            <MaterialCommunityIcons name="circle-multiple-outline" size={size * 0.52} color="#6E6E6E" />
         </View>
     );
 }
@@ -198,19 +247,27 @@ interface CurrencyIconProps {
     /** Currency/token symbol */
     symbol: string;
     size?: number;
+    /** Remote icon from wallet API (crypto / custom assets) */
+    iconUrl?: string;
 }
 
 /** Renders a flag for fiat currencies, crypto icon for tokens */
-export function CurrencyIcon({ symbol, size = 32 }: CurrencyIconProps): React.ReactElement {
+export function CurrencyIcon({ symbol, size = 32, iconUrl }: CurrencyIconProps): React.ReactElement {
     if (FIAT_CURRENCIES.has(symbol.toUpperCase())) {
         return <FlagIcon code={symbol} size={size} />;
     }
-    return <CryptoIcon symbol={symbol} size={size} />;
+    return <CryptoIcon symbol={symbol} size={size} iconUrl={iconUrl} />;
 }
 
 const styles = StyleSheet.create({
     flagIcon: {
         backgroundColor: '#F0F0F0',
+    },
+    emojiFallback: {
+        backgroundColor: '#F0F0F0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
     },
     cryptoFallback: {
         backgroundColor: '#E8E8E8',
@@ -220,5 +277,11 @@ const styles = StyleSheet.create({
     cryptoFallbackText: {
         fontWeight: '700',
         color: '#242424',
+    },
+    genericIconWrap: {
+        backgroundColor: '#ECECEC',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
     },
 });

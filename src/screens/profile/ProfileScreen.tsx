@@ -64,8 +64,9 @@ export default function ProfileScreen(): React.ReactElement {
 
   const isKYC1Verified =
     !kycLoading &&
-    (kycStatus?.level ?? user?.kyc_level ?? 0) >= 1 &&
-    kycStatus?.status === 'approved';
+    kycStatus != null &&
+    kycStatus.level >= 1 &&
+    kycStatus.status === 'approved';
 
   const onLivoBusiness = () => {
     if (isKYC1Verified) {
@@ -131,7 +132,7 @@ export default function ProfileScreen(): React.ReactElement {
         {/* KYC Status Banner — only show if verification is pending or rejected (not when approved) */}
         {kycStatus && !kycLoading && kycStatus.status !== 'approved' && (
           <KYCStatusBanner
-            level={kycStatus.level}
+            level={kycStatus.verificationLevel}
             status={kycStatus.status}
             rejectionReason={kycStatus.rejection_reason}
             onPress={() => navigation.navigate('Verification')}

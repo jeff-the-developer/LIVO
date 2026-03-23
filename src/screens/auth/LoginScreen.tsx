@@ -17,8 +17,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { HugeiconsIcon } from '@hugeicons/react-native';
-import { ViewFreeIcons, ViewOffFreeIcons, ArrowLeft01FreeIcons } from '@hugeicons/core-free-icons';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
@@ -26,6 +24,12 @@ import { typography } from '@theme/typography';
 import type { RootNavigatorParamList } from '@app-types/navigation.types';
 import { useLogin } from '@hooks/api/useAuth';
 import { handleApiError } from '@utils/errorHandler';
+import AsyncButton from '@components/common/AsyncButton';
+import Divider from '@components/common/Divider';
+import FormField from '@components/forms/FormField';
+import Input from '@components/common/Input';
+import PasswordInput from '@components/common/PasswordInput';
+import ScreenHeader from '@components/common/ScreenHeader';
 
 type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
 
@@ -48,7 +52,6 @@ function GoogleG(): React.ReactElement {
 export default function LoginScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
   const canGoBack = navigation.canGoBack();
-  const [showPassword, setShowPassword] = useState(false);
   const loginMutation = useLogin();
 
   const {
@@ -88,95 +91,61 @@ export default function LoginScreen(): React.ReactElement {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            {canGoBack ? (
-              <TouchableOpacity
-                style={styles.backBtn}
-                onPress={() => navigation.goBack()}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                accessibilityLabel="Go back"
-                accessibilityRole="button"
-              >
-                <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.backBtn} />
-            )}
-            <Text style={styles.title}>Login</Text>
-            <View style={styles.headerSpacer} />
-          </View>
+          <ScreenHeader
+            title="Login"
+            showBackButton={canGoBack}
+            onBackPress={() => navigation.goBack()}
+          />
 
           {/* Form */}
           <View style={styles.form}>
             {/* Identifier */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Mail/Phone Number</Text>
-              <Controller
-                control={control}
-                name="identifier"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    style={[styles.input, errors.identifier && styles.inputError]}
-                    placeholder="Mail/Phone Number"
-                    placeholderTextColor={colors.textMuted}
+            <Controller
+              control={control}
+              name="identifier"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <FormField
+                  label="Mail/Phone Number"
+                  error={errors.identifier?.message}
+                >
+                  <Input
+                    value={value}
                     onChangeText={onChange}
                     onBlur={onBlur}
-                    value={value}
+                    hasError={!!errors.identifier}
+                    placeholder="Mail/Phone Number"
                     autoCapitalize="none"
                     keyboardType="email-address"
                     returnKeyType="next"
+                    accessibilityLabel="Mail or phone number"
                   />
-                )}
-              />
-              {errors.identifier && (
-                <Text style={styles.errorText}>{errors.identifier.message}</Text>
+                </FormField>
               )}
-            </View>
+            />
 
             {/* Password */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.inputRow}>
-                <Controller
-                  control={control}
-                  name="password"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      style={[
-                        styles.input,
-                        styles.inputWithIcon,
-                        errors.password && styles.inputError,
-                      ]}
-                      placeholder="Enter Password"
-                      placeholderTextColor={colors.textMuted}
-                      onChangeText={onChange}
-                      onBlur={onBlur}
-                      value={value}
-                      secureTextEntry={!showPassword}
-                      returnKeyType="done"
-                      onSubmitEditing={handleSubmit(onSubmit)}
-                    />
-                  )}
-                />
-                <TouchableOpacity
-                  style={styles.eyeBtn}
-                  onPress={() => setShowPassword((p) => !p)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                  accessibilityRole="button"
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <FormField
+                  label="Password"
+                  error={errors.password?.message}
                 >
-                  <HugeiconsIcon
-                    icon={showPassword ? ViewFreeIcons : ViewOffFreeIcons}
-                    size={18}
-                    color={colors.textSecondary}
+                  <PasswordInput
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    hasError={!!errors.password}
+                    placeholder="Enter Password"
+                    testID="login-password"
+                    accessibilityLabel="Password"
+                    returnKeyType="done"
+                    onSubmitEditing={handleSubmit(onSubmit)}
                   />
-                </TouchableOpacity>
-              </View>
-              {errors.password && (
-                <Text style={styles.errorText}>{errors.password.message}</Text>
+                </FormField>
               )}
-            </View>
+            />
 
             {/* Forgot Password */}
             <TouchableOpacity
@@ -188,9 +157,9 @@ export default function LoginScreen(): React.ReactElement {
 
             {/* Divider */}
             <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
+              <Divider style={styles.dividerLine} />
               <Text style={styles.dividerText}>Quick  Continue With</Text>
-              <View style={styles.dividerLine} />
+              <Divider style={styles.dividerLine} />
             </View>
 
             {/* Google */}
@@ -209,18 +178,12 @@ export default function LoginScreen(): React.ReactElement {
             </TouchableOpacity>
             {/* Submit */}
             <View style={styles.footer}>
-              <TouchableOpacity
-                style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
+              <AsyncButton
+                label="Submit"
+                loading={isLoading}
                 onPress={handleSubmit(onSubmit)}
-                activeOpacity={0.85}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color={colors.buttonText} />
-                ) : (
-                  <Text style={styles.submitText}>Submit</Text>
-                )}
-              </TouchableOpacity>
+                testID="login-submit"
+              />
             </View>
           </View>
         </ScrollView>
@@ -242,73 +205,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: spacing.base,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.base,
-  },
-  backBtn: {
-    width: 36,
-    alignItems: 'flex-start',
-  },
-  backArrow: {
-    ...typography.h3,
-    color: colors.textPrimary,
-  },
-  title: {
-    flex: 1,
-    textAlign: 'center',
-    ...typography.h4,
-    color: colors.textPrimary,
-    fontWeight: '700',
-  },
-  headerSpacer: {
-    width: 36,
-  },
   form: {
     gap: spacing.lg,
     marginTop: spacing.sm,
-  },
-  fieldGroup: {
-    gap: spacing.xs,
-  },
-  label: {
-    ...typography.label,
-    color: colors.textPrimary,
-  },
-  input: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: borderRadius.input,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    ...typography.bodyMd,
-    color: colors.textPrimary,
-  },
-  inputWithIcon: {
-    flex: 1,
-    paddingRight: spacing.xxl + spacing.base,
-  },
-  inputError: {
-    borderColor: colors.errorAlt,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  eyeBtn: {
-    position: 'absolute',
-    right: spacing.base,
-    padding: spacing.xs,
-  },
-  eyeIcon: {
-    fontSize: 16,
-  },
-  errorText: {
-    ...typography.caption,
-    color: colors.errorAlt,
-    marginTop: spacing.xs,
   },
   forgotBtn: {
     alignSelf: 'flex-start',
@@ -326,8 +225,6 @@ const styles = StyleSheet.create({
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
   },
   dividerText: {
     ...typography.caption,
@@ -365,21 +262,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
     paddingBottom: spacing.base,
     paddingTop: spacing.sm,
-  },
-  submitBtn: {
-    backgroundColor: colors.buttonPrimary,
-    borderRadius: borderRadius.full,
-    paddingVertical: spacing.base,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-  },
-  submitText: {
-    ...typography.bodyMd,
-    color: colors.buttonText,
-    fontWeight: '600',
   },
 });

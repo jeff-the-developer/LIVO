@@ -22,6 +22,10 @@ interface PasswordInputProps {
     testID: string;
     /** Accessibility label (defaults to placeholder) */
     accessibilityLabel?: string;
+    onBlur?: () => void;
+    hasError?: boolean;
+    returnKeyType?: 'done' | 'next' | 'go' | 'search' | 'send';
+    onSubmitEditing?: () => void;
 }
 
 // ─── PasswordInput ────────────────────────────────────────────────────────────
@@ -35,19 +39,26 @@ export default function PasswordInput({
     placeholder,
     testID,
     accessibilityLabel,
+    onBlur,
+    hasError = false,
+    returnKeyType,
+    onSubmitEditing,
 }: PasswordInputProps): React.ReactElement {
     const [visible, setVisible] = useState(false);
 
     return (
-        <View style={styles.row}>
+        <View style={[styles.row, hasError && styles.rowError]}>
             <TextInput
                 style={styles.input}
                 value={value}
                 onChangeText={onChangeText}
+                onBlur={onBlur}
                 placeholder={placeholder}
                 placeholderTextColor={colors.textMuted}
                 secureTextEntry={!visible}
                 autoCapitalize="none"
+                returnKeyType={returnKeyType}
+                onSubmitEditing={onSubmitEditing}
                 accessibilityLabel={accessibilityLabel ?? placeholder}
                 testID={testID}
             />
@@ -78,6 +89,9 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.input,
         paddingHorizontal: spacing.base,
         paddingVertical: spacing.md,
+    },
+    rowError: {
+        borderColor: colors.error,
     },
     input: {
         flex: 1,

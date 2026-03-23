@@ -10,6 +10,8 @@ import {
     getTransferHistory,
     qrPayment,
 } from '@api/send';
+import { txKeys } from '@hooks/api/useTransactions';
+import { walletKeys } from '@hooks/api/useWallet';
 import type {
     DirectTransferRequest,
     QuickTransferRequest,
@@ -39,13 +41,28 @@ export function useSendMethods() {
 
 // ─── Search Recipients ───────────────────────────────────────────────────────
 export function useSearchRecipients(query: string) {
+    const trimmed = query.trim();
     return useQuery({
-        queryKey: sendKeys.search(query),
-        queryFn: () => searchRecipients(query),
-        select: (d) => d.data,
+        queryKey: sendKeys.search(trimmed),
+        queryFn: () => searchRecipients(trimmed),
+        select: (d) => {
+            const inner = d.data;
+            // Backend returns a plain array; normalize to { recipients: [...] }
+            if (Array.isArray(inner)) return { recipients: inner };
+            return inner;
+        },
         staleTime: 30_000,
-        enabled: query.length >= 2,
+        enabled: trimmed.length >= 1,
+        /** Smooth list updates while typing (no flash to empty between queries) */
+        placeholderData: (previousData) => previousData,
     });
+}
+
+// Invalidate all transfer-related caches after any send
+function invalidateAfterTransfer(queryClient: ReturnType<typeof useQueryClient>) {
+    queryClient.invalidateQueries({ queryKey: sendKeys.history() });
+    queryClient.invalidateQueries({ queryKey: txKeys.all });
+    queryClient.invalidateQueries({ queryKey: walletKeys.all });
 }
 
 // ─── Direct Transfer ─────────────────────────────────────────────────────────
@@ -54,9 +71,7 @@ export function useDirectTransfer() {
 
     return useMutation({
         mutationFn: (payload: DirectTransferRequest) => directTransfer(payload),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: sendKeys.history() });
-        },
+        onSuccess: () => invalidateAfterTransfer(queryClient),
     });
 }
 
@@ -66,9 +81,7 @@ export function useQuickTransfer() {
 
     return useMutation({
         mutationFn: (payload: QuickTransferRequest) => quickTransfer(payload),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: sendKeys.history() });
-        },
+        onSuccess: () => invalidateAfterTransfer(queryClient),
     });
 }
 
@@ -78,9 +91,7 @@ export function useCryptoTransfer() {
 
     return useMutation({
         mutationFn: (payload: CryptoTransferRequest) => cryptoTransfer(payload),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: sendKeys.history() });
-        },
+        onSuccess: () => invalidateAfterTransfer(queryClient),
     });
 }
 
@@ -90,9 +101,7 @@ export function useBankTransfer() {
 
     return useMutation({
         mutationFn: (payload: BankTransferRequest) => bankTransfer(payload),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: sendKeys.history() });
-        },
+        onSuccess: () => invalidateAfterTransfer(queryClient),
     });
 }
 
@@ -123,8 +132,6 @@ export function useQRPayment() {
 
     return useMutation({
         mutationFn: (payload: QRPaymentRequest) => qrPayment(payload),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: sendKeys.history() });
-        },
+        onSuccess: () => invalidateAfterTransfer(queryClient),
     });
 }

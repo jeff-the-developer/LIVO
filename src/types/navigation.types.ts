@@ -4,6 +4,8 @@ export type IdentifierType = 'email' | 'phone';
 
 // ─── Auth Stack ───────────────────────────────────────────────────────────────
 export type AuthStackParamList = {
+    /** Resume CreateUsername / PINSetup when session is valid but onboarding incomplete */
+    OnboardingGate: undefined;
     Login: undefined;
     Register: undefined;
     VerifyOTP: {
@@ -113,19 +115,52 @@ export type AppStackParamList = {
     };
     // Home tab sub-screens
     AssetDetail: { symbol: string };
-    TransactionDetail: { id: string };
+    TransactionDetail: {
+        id: string;
+        type?: string;
+        status?: string;
+        amount?: string;
+        fee?: string;
+        currency?: string;
+        from?: string;
+        to?: string;
+        timestamp?: string;
+        reference?: string;
+        notes?: string;
+    };
     AllTransactions: undefined;
     NotificationsList: undefined;
     QRScanner: undefined;
     // Send tab sub-screens
-    DirectTransfer: undefined;
-    CryptoTransfer: undefined;
+    /** Optional prefills when opened from QR / deep link */
+    DirectTransfer:
+        | {
+              prefillSearchQuery?: string;
+              prefillCurrency?: string;
+              prefillAmount?: string;
+              prefillNote?: string;
+          }
+        | undefined;
+    /** Optional `prefilledAddress` when opened from QR scan */
+    CryptoTransfer: { prefilledAddress?: string };
     BankTransfer: undefined;
     SendGifts: undefined;
     GiftsHistory: undefined;
     // Deposit sub-screens
     Deposit: undefined;
+    QuickReceive: undefined;
     CryptoReceive: undefined;
+    CashDeposit: undefined;
+    BankTransferDeposit: undefined;
+    BankAdditionalInfo: { bankName: string; bankId: string };
+    RedeemCode: undefined;
+    CreditDebitDeposit: undefined;
+    AddFunds: {
+        source: 'bank_transfer' | 'credit_debit' | 'apple_pay';
+        currency?: string;
+        bankDetails?: string;
+        cardToken?: string;
+    };
     // Swap sub-screens
     FXSwap: undefined;
     SwapRecords: undefined;

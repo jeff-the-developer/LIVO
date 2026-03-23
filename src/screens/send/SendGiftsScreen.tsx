@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -21,25 +21,20 @@ import type { AppStackParamList } from '@app-types/navigation.types';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import BottomSheet from '@components/common/BottomSheet';
+import Button from '@components/common/Button';
+import SheetStateBlock from '@components/common/SheetStateBlock';
+import DetailRow from '@components/common/DetailRow';
+import AssetRow from '@components/wallet/AssetRow';
 import { useWalletDashboard } from '@hooks/api/useWallet';
 import { useDisplaySettings } from '@hooks/useDisplaySettings';
+import { hapticLight } from '@utils/haptics';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
-const CURRENCY_FLAGS: Record<string, string> = {
-    USD: 'US', HKD: 'HK', CNY: 'CN', AUD: 'AU', CAD: 'CA',
-    CHF: 'CH', EUR: 'EU', GBP: 'GB', JPY: 'JP', SGD: 'SG',
-};
-
-function getFlagEmoji(symbol: string): string {
-    const code = CURRENCY_FLAGS[symbol] ?? 'US';
-    return code.toUpperCase().split('').map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('');
-}
-
 export default function SendGiftsScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
-    const { currency } = useDisplaySettings();
-    const dashboard = useWalletDashboard(currency);
+    const { currency: displayCurrency } = useDisplaySettings();
+    const dashboard = useWalletDashboard(displayCurrency);
 
     const [quantity, setQuantity] = useState('');
     const [totalAmount, setTotalAmount] = useState('');
@@ -47,149 +42,229 @@ export default function SendGiftsScreen(): React.ReactElement {
     const [note, setNote] = useState('');
     const [newUsersOnly, setNewUsersOnly] = useState(false);
     const [currencySheetVisible, setCurrencySheetVisible] = useState(false);
+    const [nextStepsVisible, setNextStepsVisible] = useState(false);
 
-    const availableBalance = dashboard.data?.assets?.find(
-        (a) => a.symbol === selectedCurrency,
-    )?.available ?? '0';
+    const selectedAsset = dashboard.data?.assets?.find((a) => a.symbol === selectedCurrency);
+    const availableBalance = selectedAsset?.available ?? '0';
 
-    const canContinue = !!quantity && !!totalAmount && parseFloat(totalAmount) > 0;
+    const qtyNum = parseInt(quantity, 10);
+    const totalNum = parseFloat(totalAmount);
+    const perGift =
+        qtyNum > 0 && totalNum > 0 && !Number.isNaN(qtyNum) && !Number.isNaN(totalNum)
+            ? (totalNum / qtyNum).toFixed(8)
+            : '—';
+
+    const canContinue =
+        !!quantity &&
+        !!totalAmount &&
+        qtyNum >= 1 &&
+        totalNum > 0 &&
+        !Number.isNaN(qtyNum) &&
+        !Number.isNaN(totalNum);
+
+    const handleCurrencySelect = useCallback((symbol: string) => {
+        setSelectedCurrency(symbol);
+        setCurrencySheetVisible(false);
+    }, []);
+
+    const handleContinue = useCallback(() => {
+        if (!canContinue) return;
+        hapticLight();
+        setNextStepsVisible(true);
+    }, [canContinue]);
+
+    const closeNextSteps = useCallback(() => {
+        setNextStepsVisible(false);
+    }, []);
+
+    const goInviteFriends = useCallback(() => {
+        setNextStepsVisible(false);
+        navigation.navigate('InviteFriends');
+    }, [navigation]);
 
     return (
-        <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.6} style={styles.backBtn}>
-                    <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Send Gifts</Text>
-                <View style={styles.backBtn} />
-            </View>
-
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-                {/* Quantity */}
-                <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Quantity</Text>
-                    <View style={styles.fieldInput}>
-                        <TextInput
-                            style={styles.textInput}
-                            placeholder="Enter Quantity"
-                            placeholderTextColor="#B2B2B2"
-                            value={quantity}
-                            onChangeText={setQuantity}
-                            keyboardType="number-pad"
-                        />
-                    </View>
+        <>
+            <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.6} style={styles.backBtn}>
+                        <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Send Gifts</Text>
+                    <View style={styles.backBtn} />
                 </View>
 
-                {/* Total Amount */}
-                <View style={styles.fieldGroup}>
-                    <View style={styles.fieldLabelRow}>
-                        <Text style={styles.fieldLabel}>Total Amount</Text>
-                        <Text style={styles.balanceHint}>{availableBalance}</Text>
+                <ScrollView
+                    style={styles.scroll}
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View style={styles.noticeBanner}>
+                        <HugeiconsIcon icon={InformationCircleFreeIcons} size={18} color={colors.textMuted} />
+                        <Text style={styles.noticeText}>
+                            Multi-recipient gifts are not available in the app yet. Nothing you enter here is sent or
+                            charged — use the steps below when you are ready to invite friends.
+                        </Text>
                     </View>
-                    <View style={styles.fieldInput}>
-                        <TextInput
-                            style={styles.textInput}
-                            placeholder="00.00"
-                            placeholderTextColor="#B2B2B2"
-                            value={totalAmount}
-                            onChangeText={setTotalAmount}
-                            keyboardType="decimal-pad"
+
+                    {/* Quantity */}
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.fieldLabel}>Quantity</Text>
+                        <View style={styles.fieldInput}>
+                            <TextInput
+                                style={styles.textInput}
+                                placeholder="Enter Quantity"
+                                placeholderTextColor="#B2B2B2"
+                                value={quantity}
+                                onChangeText={setQuantity}
+                                keyboardType="number-pad"
+                            />
+                        </View>
+                    </View>
+
+                    {/* Total Amount */}
+                    <View style={styles.fieldGroup}>
+                        <View style={styles.fieldLabelRow}>
+                            <Text style={styles.fieldLabel}>Total Amount</Text>
+                            <Text style={styles.balanceHint}>
+                                {availableBalance} {selectedCurrency}
+                            </Text>
+                        </View>
+                        <View style={styles.fieldInput}>
+                            <TextInput
+                                style={styles.textInput}
+                                placeholder="00.00"
+                                placeholderTextColor="#B2B2B2"
+                                value={totalAmount}
+                                onChangeText={setTotalAmount}
+                                keyboardType="decimal-pad"
+                            />
+                            <TouchableOpacity
+                                style={styles.currencyPicker}
+                                onPress={() => setCurrencySheetVisible(true)}
+                                activeOpacity={0.6}
+                            >
+                                <Text style={styles.currencyText}>{selectedCurrency}</Text>
+                                <HugeiconsIcon icon={ArrowRight01FreeIcons} size={14} color="#242424" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {/* Note */}
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.fieldLabel}>Note (Optional)</Text>
+                        <View style={styles.fieldInput}>
+                            <TextInput
+                                style={styles.textInput}
+                                placeholder="Add note for both parties"
+                                placeholderTextColor="#B2B2B2"
+                                value={note}
+                                onChangeText={setNote}
+                            />
+                            <HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="#B2B2B2" />
+                        </View>
+                    </View>
+
+                    {/* Divider */}
+                    <View style={styles.divider} />
+
+                    {/* More Settings */}
+                    <Text style={styles.sectionTitle}>More Settings</Text>
+
+                    <View style={styles.settingRow}>
+                        <View style={styles.settingLeft}>
+                            <Text style={styles.settingLabel}>New Users Only</Text>
+                            <HugeiconsIcon icon={InformationCircleFreeIcons} size={16} color="#B2B2B2" />
+                        </View>
+                        <Switch
+                            value={newUsersOnly}
+                            onValueChange={setNewUsersOnly}
+                            trackColor={{ false: '#E8E8E8', true: '#01CA47' }}
+                            thumbColor="white"
                         />
-                        <TouchableOpacity
-                            style={styles.currencyPicker}
-                            onPress={() => setCurrencySheetVisible(true)}
-                            activeOpacity={0.6}
-                        >
-                            <Text style={styles.currencyFlag}>{getFlagEmoji(selectedCurrency)}</Text>
-                            <Text style={styles.currencyText}>{selectedCurrency}</Text>
-                            <HugeiconsIcon icon={ArrowRight01FreeIcons} size={14} color="#242424" />
-                        </TouchableOpacity>
                     </View>
+                    <Text style={styles.settingHint}>Earn rewards by inviting new users</Text>
+                </ScrollView>
+
+                {/* Continue → next steps (no API) */}
+                <View style={styles.footer}>
+                    <TouchableOpacity
+                        style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
+                        onPress={handleContinue}
+                        activeOpacity={0.7}
+                        disabled={!canContinue}
+                    >
+                        <Text style={[styles.continueBtnText, !canContinue && styles.continueBtnTextDisabled]}>
+                            Continue
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
-                {/* Note */}
-                <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>Note (Optional)</Text>
-                    <View style={styles.fieldInput}>
-                        <TextInput
-                            style={styles.textInput}
-                            placeholder="Add note for both parties"
-                            placeholderTextColor="#B2B2B2"
-                            value={note}
-                            onChangeText={setNote}
-                        />
-                        <HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="#B2B2B2" />
+                {/* Currency Picker Sheet */}
+                <BottomSheet
+                    visible={currencySheetVisible}
+                    onClose={() => setCurrencySheetVisible(false)}
+                    maxHeight="85%"
+                    showBackButton
+                >
+                    <Text style={styles.sheetTitle}>Currency</Text>
+                    <View style={styles.assetList}>
+                        {dashboard.data?.assets?.map((asset) => (
+                            <AssetRow
+                                key={asset.symbol}
+                                symbol={asset.symbol}
+                                name={asset.name}
+                                price={asset.price}
+                                change24h={asset.change_24h}
+                                balance={asset.balance}
+                                usdValue={`${asset.balance} USD`}
+                                iconUrl={asset.icon_url}
+                                isHidden={false}
+                                onPress={() => handleCurrencySelect(asset.symbol)}
+                            />
+                        )) ?? (
+                            <View style={styles.emptyState}>
+                                <Text style={styles.emptyText}>Loading assets...</Text>
+                            </View>
+                        )}
                     </View>
-                </View>
+                </BottomSheet>
+            </SafeAreaView>
 
-                {/* Divider */}
-                <View style={styles.divider} />
-
-                {/* More Settings */}
-                <Text style={styles.sectionTitle}>More Settings</Text>
-
-                <View style={styles.settingRow}>
-                    <View style={styles.settingLeft}>
-                        <Text style={styles.settingLabel}>New Users Only</Text>
-                        <HugeiconsIcon icon={InformationCircleFreeIcons} size={16} color="#B2B2B2" />
+            <BottomSheet
+                visible={nextStepsVisible}
+                onClose={closeNextSteps}
+                maxHeight="78%"
+                title="Gifts"
+                showBackButton
+                footer={
+                    <View style={styles.nextStepsFooter}>
+                        <Button label="Invite friends" onPress={goInviteFriends} />
+                        <Button label="Got it" variant="secondary" onPress={closeNextSteps} />
                     </View>
-                    <Switch
-                        value={newUsersOnly}
-                        onValueChange={setNewUsersOnly}
-                        trackColor={{ false: '#E8E8E8', true: '#01CA47' }}
-                        thumbColor="white"
+                }
+            >
+                <SheetStateBlock
+                    tone="info"
+                    title="Sending gifts is not live yet"
+                    description={
+                        'There is no server endpoint for multi-recipient or pooled gifts in this build. Your draft is for planning only — no funds move.\n\n' +
+                        'When gifting launches, you will confirm recipients and payment here. For now, invite friends to join LIVOPay from Invite friends.'
+                    }
+                />
+                <View style={styles.summaryCard}>
+                    <Text style={styles.summaryTitle}>Your draft</Text>
+                    <DetailRow label="Quantity" value={quantity} />
+                    <DetailRow label="Total" value={`${totalAmount} ${selectedCurrency}`} />
+                    <DetailRow label="Per gift (preview)" value={`${perGift} ${selectedCurrency}`} />
+                    {note.trim() ? <DetailRow label="Note" value={note.trim()} /> : null}
+                    <DetailRow
+                        label="New users only"
+                        value={newUsersOnly ? 'Yes' : 'No'}
                     />
                 </View>
-                <Text style={styles.settingHint}>Earn rewards by inviting new users</Text>
-            </ScrollView>
-
-            {/* Continue Button */}
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={[styles.continueBtn, !canContinue && styles.continueBtnDisabled]}
-                    onPress={() => {}}
-                    activeOpacity={0.7}
-                    disabled={!canContinue}
-                >
-                    <Text style={[styles.continueBtnText, !canContinue && styles.continueBtnTextDisabled]}>
-                        Continue
-                    </Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Currency Picker */}
-            <BottomSheet
-                visible={currencySheetVisible}
-                onClose={() => setCurrencySheetVisible(false)}
-                maxHeight="50%"
-                showBackButton
-            >
-                <Text style={styles.sheetTitle}>Currency</Text>
-                <View style={styles.currencyList}>
-                    {Object.keys(CURRENCY_FLAGS).map((cur) => (
-                        <TouchableOpacity
-                            key={cur}
-                            style={[
-                                styles.currencyRow,
-                                selectedCurrency === cur && styles.currencyRowSelected,
-                            ]}
-                            onPress={() => {
-                                setSelectedCurrency(cur);
-                                setCurrencySheetVisible(false);
-                            }}
-                            activeOpacity={0.6}
-                        >
-                            <Text style={styles.currencyRowFlag}>{getFlagEmoji(cur)}</Text>
-                            <Text style={styles.currencyRowText}>{cur}</Text>
-                            {selectedCurrency === cur && (
-                                <View style={styles.currencyCheck} />
-                            )}
-                        </TouchableOpacity>
-                    ))}
-                </View>
             </BottomSheet>
-        </SafeAreaView>
+        </>
     );
 }
 
@@ -215,6 +290,24 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#242424',
         lineHeight: 24,
+    },
+    noticeBanner: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.sm,
+        backgroundColor: colors.surfaceAlt,
+        borderRadius: 13,
+        padding: spacing.base,
+        marginBottom: spacing.lg,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.border,
+    },
+    noticeText: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '400',
+        color: colors.textSecondary,
+        lineHeight: 19,
     },
     scroll: {
         flex: 1,
@@ -268,9 +361,6 @@ const styles = StyleSheet.create({
         paddingLeft: 10,
         borderLeftWidth: 1,
         borderLeftColor: '#F0F0F0',
-    },
-    currencyFlag: {
-        fontSize: 16,
     },
     currencyText: {
         fontSize: 14,
@@ -342,36 +432,34 @@ const styles = StyleSheet.create({
         lineHeight: 37.5,
         marginBottom: 19,
     },
-    currencyList: {
-        gap: 8,
+    assetList: {
+        gap: 10,
     },
-    currencyRow: {
-        flexDirection: 'row',
+    emptyState: {
+        paddingVertical: 40,
         alignItems: 'center',
-        height: 50,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#B2B2B2',
+    },
+    nextStepsFooter: {
+        width: '100%',
+        gap: spacing.sm,
+    },
+    summaryCard: {
+        marginTop: spacing.md,
         borderRadius: 13,
-        backgroundColor: '#F0F0F0',
-        paddingHorizontal: 16,
-        gap: 12,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: 'rgba(0,0,0,0.08)',
+        overflow: 'hidden',
     },
-    currencyRowSelected: {
-        borderWidth: 1.5,
-        borderColor: '#01CA47',
-    },
-    currencyRowFlag: {
-        fontSize: 24,
-    },
-    currencyRowText: {
-        flex: 1,
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#242424',
-        lineHeight: 24,
-    },
-    currencyCheck: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: '#01CA47',
+    summaryTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        paddingHorizontal: spacing.base,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.xs,
     },
 });

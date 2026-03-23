@@ -14,14 +14,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { HugeiconsIcon } from '@hugeicons/react-native';
-import { ArrowLeft01FreeIcons } from '@hugeicons/core-free-icons';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { useSaveAddress, useAddress, handleApiError } from '@hooks/api/useProfile';
+import AsyncButton from '@components/common/AsyncButton';
+import FormField from '@components/forms/FormField';
+import Input from '@components/common/Input';
+import ScreenHeader from '@components/common/ScreenHeader';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -43,42 +45,6 @@ const INITIAL: AddressForm = {
     postalCode: '',
     country: '',
 };
-
-// ─── Reusable Field ───────────────────────────────────────────────────────────
-function Field({
-    label,
-    value,
-    placeholder,
-    onChangeText,
-    testID,
-    keyboardType,
-    autoCapitalize,
-}: {
-    label: string;
-    value: string;
-    placeholder: string;
-    onChangeText: (v: string) => void;
-    testID: string;
-    keyboardType?: 'default' | 'number-pad';
-    autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-}): React.ReactElement {
-    return (
-        <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{label}</Text>
-            <TextInput
-                style={styles.input}
-                value={value}
-                onChangeText={onChangeText}
-                placeholder={placeholder}
-                placeholderTextColor={colors.textMuted}
-                keyboardType={keyboardType ?? 'default'}
-                autoCapitalize={autoCapitalize ?? 'words'}
-                accessibilityLabel={label}
-                testID={testID}
-            />
-        </View>
-    );
-}
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function MyAddressScreen(): React.ReactElement {
@@ -139,25 +105,10 @@ export default function MyAddressScreen(): React.ReactElement {
                 style={styles.flex}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-                {/* ─── Header ──────────────────────────────────────── */}
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backBtn}
-                        onPress={() => navigation.goBack()}
-                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                        accessibilityLabel="Go back"
-                        accessibilityRole="button"
-                        testID="address-back"
-                    >
-                        <HugeiconsIcon
-                            icon={ArrowLeft01FreeIcons}
-                            size={24}
-                            color={colors.textPrimary}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>My Address</Text>
-                    <View style={styles.headerSpacer} />
-                </View>
+                <ScreenHeader
+                    title="My Address"
+                    onBackPress={() => navigation.goBack()}
+                />
 
                 <ScrollView
                     style={styles.flex}
@@ -165,34 +116,50 @@ export default function MyAddressScreen(): React.ReactElement {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    <Field
+                    <FormField
                         label="Street Address"
-                        value={form.street}
-                        placeholder="123 Main Street"
-                        onChangeText={update('street')}
-                        testID="address-street"
-                    />
-                    <Field
+                    >
+                        <Input
+                            value={form.street}
+                            onChangeText={update('street')}
+                            placeholder="123 Main Street"
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="words"
+                            accessibilityLabel="Street Address"
+                            testID="address-street"
+                        />
+                    </FormField>
+                    <FormField
                         label="Apartment / Suite (Optional)"
-                        value={form.apartment}
-                        placeholder="Apt 4B"
-                        onChangeText={update('apartment')}
-                        testID="address-apartment"
-                    />
-                    <Field
+                    >
+                        <Input
+                            value={form.apartment}
+                            onChangeText={update('apartment')}
+                            placeholder="Apt 4B"
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="words"
+                            accessibilityLabel="Apartment or suite"
+                            testID="address-apartment"
+                        />
+                    </FormField>
+                    <FormField
                         label="City"
-                        value={form.city}
-                        placeholder="Hong Kong"
-                        onChangeText={update('city')}
-                        testID="address-city"
-                    />
+                    >
+                        <Input
+                            value={form.city}
+                            onChangeText={update('city')}
+                            placeholder="Hong Kong"
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="words"
+                            accessibilityLabel="City"
+                            testID="address-city"
+                        />
+                    </FormField>
 
                     {/* Two-column row */}
                     <View style={styles.row}>
-                        <View style={styles.halfField}>
-                            <Text style={styles.label}>State / Province</Text>
-                            <TextInput
-                                style={styles.input}
+                        <FormField label="State / Province" containerStyle={styles.halfField}>
+                            <Input
                                 value={form.state}
                                 onChangeText={update('state')}
                                 placeholder="State"
@@ -201,11 +168,9 @@ export default function MyAddressScreen(): React.ReactElement {
                                 accessibilityLabel="State or Province"
                                 testID="address-state"
                             />
-                        </View>
-                        <View style={styles.halfField}>
-                            <Text style={styles.label}>Postal Code</Text>
-                            <TextInput
-                                style={styles.input}
+                        </FormField>
+                        <FormField label="Postal Code" containerStyle={styles.halfField}>
+                            <Input
                                 value={form.postalCode}
                                 onChangeText={update('postalCode')}
                                 placeholder="000000"
@@ -214,38 +179,34 @@ export default function MyAddressScreen(): React.ReactElement {
                                 accessibilityLabel="Postal Code"
                                 testID="address-postal"
                             />
-                        </View>
+                        </FormField>
                     </View>
 
-                    <Field
+                    <FormField
                         label="Country"
-                        value={form.country}
-                        placeholder="Hong Kong SAR"
-                        onChangeText={update('country')}
-                        testID="address-country"
-                    />
+                    >
+                        <Input
+                            value={form.country}
+                            onChangeText={update('country')}
+                            placeholder="Hong Kong SAR"
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="words"
+                            accessibilityLabel="Country"
+                            testID="address-country"
+                        />
+                    </FormField>
                 </ScrollView>
 
                 {/* ─── Save Button ─────────────────────────────────── */}
                 <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[
-                            styles.saveBtn,
-                            (!isValid || saveMutation.isPending) && styles.btnDisabled,
-                        ]}
+                    <AsyncButton
+                        label="Save"
+                        loading={saveMutation.isPending}
+                        disabled={!isValid}
                         onPress={onSave}
-                        activeOpacity={0.85}
-                        disabled={!isValid || saveMutation.isPending}
-                        accessibilityLabel="Save address"
-                        accessibilityRole="button"
                         testID="address-save"
-                    >
-                        {saveMutation.isPending ? (
-                            <ActivityIndicator color={colors.buttonText} />
-                        ) : (
-                            <Text style={styles.saveText}>Save</Text>
-                        )}
-                    </TouchableOpacity>
+                        accessibilityLabel="Save address"
+                    />
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -263,38 +224,6 @@ const styles = StyleSheet.create({
         paddingBottom: spacing.base,
     },
 
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing.base,
-        paddingHorizontal: spacing.base,
-    },
-    backBtn: { width: 36, alignItems: 'flex-start' },
-    headerTitle: {
-        flex: 1,
-        textAlign: 'center',
-        ...typography.h4,
-        color: colors.textPrimary,
-        fontWeight: '700',
-    },
-    headerSpacer: { width: 36 },
-
-    fieldGroup: { gap: spacing.xs },
-    label: {
-        ...typography.label,
-        color: colors.textPrimary,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: borderRadius.input,
-        paddingHorizontal: spacing.base,
-        paddingVertical: spacing.md,
-        ...typography.bodyMd,
-        color: colors.textPrimary,
-        backgroundColor: colors.background,
-    },
-
     row: {
         flexDirection: 'row',
         gap: spacing.sm,
@@ -308,19 +237,5 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.base,
         paddingBottom: spacing.base,
         paddingTop: spacing.sm,
-    },
-    saveBtn: {
-        backgroundColor: colors.buttonPrimary,
-        borderRadius: borderRadius.full,
-        paddingVertical: spacing.base,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 52,
-    },
-    btnDisabled: { opacity: 0.4 },
-    saveText: {
-        ...typography.bodyMd,
-        color: colors.buttonText,
-        fontWeight: '600',
     },
 });

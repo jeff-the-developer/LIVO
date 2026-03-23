@@ -11,11 +11,16 @@ export interface KYCPrivilege {
     active: boolean;
 }
 
+/** Normalized from backend tier.status — used for honest gating (not only `completed`). */
+export type KYCTierStatus = 'approved' | 'pending' | 'not_started' | 'rejected';
+
 export interface KYCLevelInfo {
     level: number;
     privileges: KYCPrivilege[];
     requirements: string[];
     completed: boolean;
+    /** Source-of-truth tier state from API (do not infer only from `completed`) */
+    tier_status: KYCTierStatus;
     action_label: string;
     actionable: boolean;
 }
@@ -64,11 +69,17 @@ export interface KYCSubmitResult {
     status: 'pending';
 }
 
-// Kept for ProfileScreen compatibility
+/**
+ * Derived snapshot for gating + profile UI.
+ * - `level`: highest tier that is **approved** (0 if none above reg-only tier).
+ * - `status`: KYC **tier 1** lifecycle (identity); not tier-0 registration alone.
+ * - `verificationLevel`: which tier to show in banners (next incomplete ≥1, or highest approved).
+ */
 export interface KYCStatusResult {
     level: number;
     status: 'pending' | 'in_progress' | 'approved' | 'rejected';
     rejection_reason?: string;
+    verificationLevel: number;
 }
 
 // Static per-level privilege info (no user context, from GET /kyc/privileges)
@@ -112,15 +123,24 @@ function formatLimit(daily: string): string {
     return `${num.toLocaleString('en-US')} USD/day`;
 }
 
+function normalizeTierStatus(raw: string): KYCTierStatus {
+    const s = String(raw).toLowerCase().trim();
+    if (s === 'approved') return 'approved';
+    if (s === 'pending' || s === 'in_review' || s === 'submitted') return 'pending';
+    if (s === 'rejected' || s === 'failed') return 'rejected';
+    return 'not_started';
+}
+
 function mapBackendTiers(tiers: BackendKYCTier[]): KYCLevelInfo[] {
     // Backend sends cumulative privileges — deduplicate to show only what's new at each level.
     const seenIds = new Set<string>();
 
     return tiers.map((tier, idx) => {
-        const isApproved = tier.status === 'approved';
-        const isPending = tier.status === 'pending';
-        const isRejected = tier.status === 'rejected';
-        const prevApproved = idx === 0 || tiers[idx - 1]?.status === 'approved';
+        const tierStatus = normalizeTierStatus(tier.status);
+        const isApproved = tierStatus === 'approved';
+        const isPending = tierStatus === 'pending';
+        const isRejected = tierStatus === 'rejected';
+        const prevApproved = idx === 0 || normalizeTierStatus(tiers[idx - 1]?.status ?? '') === 'approved';
 
         let action_label: string;
         let actionable: boolean;
@@ -160,10 +180,47 @@ function mapBackendTiers(tiers: BackendKYCTier[]): KYCLevelInfo[] {
             })),
             requirements: tier.requirements,
             completed: isApproved,
+            tier_status: tierStatus,
             action_label,
             actionable,
         };
     });
+}
+
+/**
+ * Single source of truth for KYC gating from GET /kyc/status overview payload.
+ * Never treat tier 0 alone as "KYC approved" for product features that require KYC1.
+ */
+export function deriveKYCStatusFromOverview(overview: KYCOverviewResult): KYCStatusResult {
+    const { levels } = overview;
+    const t1 = levels.find((l) => l.level === 1);
+
+    const approvedLevels = levels.filter((l) => l.tier_status === 'approved').map((l) => l.level);
+    const highestApproved = approvedLevels.length > 0 ? Math.max(...approvedLevels) : 0;
+
+    let status: KYCStatusResult['status'];
+    if (!t1) {
+        status = 'in_progress';
+    } else if (t1.tier_status === 'approved') {
+        status = 'approved';
+    } else if (t1.tier_status === 'rejected') {
+        status = 'rejected';
+    } else if (t1.tier_status === 'pending') {
+        status = 'pending';
+    } else {
+        status = 'in_progress';
+    }
+
+    const ordered = [...levels].filter((l) => l.level >= 1).sort((a, b) => a.level - b.level);
+    const nextIncomplete = ordered.find((l) => l.tier_status !== 'approved');
+    const verificationLevel =
+        nextIncomplete?.level ?? (highestApproved > 0 ? highestApproved : 1);
+
+    return {
+        level: highestApproved,
+        status,
+        verificationLevel,
+    };
 }
 
 // ─── Idempotency key helper ───────────────────────────────────────────────────
@@ -284,15 +341,14 @@ export async function submitKYCLevel0(): Promise<ApiResponse<{ level: number; st
 }
 
 // ─── Get KYC Status ───────────────────────────────────────────────────────────
+/** Same contract as overview-derived status (GET /kyc/status is the backing endpoint for overview). */
 export async function getKYCStatus(): Promise<ApiResponse<KYCStatusResult>> {
-    // Always use mock data until backend is ready
-    return mockDelay({
-        success: true,
-        data: {
-            level: 1,
-            status: 'approved',
-        },
-    });
+    const overview = await getKYCOverview();
+    return {
+        success: overview.success,
+        message: overview.message,
+        data: deriveKYCStatusFromOverview(overview.data),
+    };
 }
 
 // ─── Submit KYC Level 1 — Individual ─────────────────────────────────────────

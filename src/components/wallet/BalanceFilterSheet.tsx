@@ -1,9 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import { ArrowRight01FreeIcons } from '@hugeicons/core-free-icons';
 import BottomSheet from '@components/common/BottomSheet';
+import Button from '@components/common/Button';
 import CurrencyPickerSheet from '@components/wallet/CurrencyPickerSheet';
+import SelectField from '@components/forms/SelectField';
+import { FlagIcon } from '@components/icons/CurrencyIcons';
+import { borderRadius } from '@theme/borderRadius';
+import { colors } from '@theme/colors';
+import { spacing } from '@theme/spacing';
+import { typography } from '@theme/typography';
+import { ui } from '@theme/ui';
 
 type DisplayMode = 'available' | 'total';
 type AssetType = 'all' | 'fiat' | 'crypto';
@@ -32,6 +40,15 @@ export default function BalanceFilterSheet({
     const [selectedCurrency, setSelectedCurrency] = useState(currency);
     const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
 
+    // Sync internal state with current persisted values each time the sheet opens
+    useEffect(() => {
+        if (visible) {
+            setDisplay(initialDisplay);
+            setAssetType(initialType);
+            setSelectedCurrency(currency);
+        }
+    }, [visible, currency, initialDisplay, initialType]);
+
     const handleReset = () => {
         setDisplay('available');
         setAssetType('all');
@@ -43,18 +60,14 @@ export default function BalanceFilterSheet({
         onClose();
     };
 
-    const handleCurrencySelect = (code: string, name: string) => {
-        setSelectedCurrency(name);
+    const handleCurrencySelect = (code: string, _name: string) => {
+        setSelectedCurrency(code);
     };
 
     const footer = (
         <View style={styles.footerButtons}>
-            <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm} activeOpacity={0.7}>
-                <Text style={styles.confirmText}>Confirm</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.7}>
-                <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+            <Button label="Confirm" onPress={handleConfirm} />
+            <Button label="Cancel" variant="secondary" onPress={onClose} />
         </View>
     );
 
@@ -86,14 +99,18 @@ export default function BalanceFilterSheet({
             {/* Currency */}
             <View style={styles.section}>
                 <Text style={styles.label}>Currency</Text>
-                <TouchableOpacity
+                <SelectField
                     style={styles.dropdown}
-                    activeOpacity={0.7}
                     onPress={() => setCurrencyPickerVisible(true)}
-                >
-                    <Text style={styles.dropdownText}>{selectedCurrency}</Text>
-                    <HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color="#B2B2B2" />
-                </TouchableOpacity>
+                    value={selectedCurrency}
+                    placeholder="Select currency"
+                    leftAdornment={
+                        selectedCurrency ? (
+                            <FlagIcon code={selectedCurrency} size={ui.selectorIconSm} />
+                        ) : undefined
+                    }
+                    rightAdornment={<HugeiconsIcon icon={ArrowRight01FreeIcons} size={24} color={colors.textMuted} />}
+                />
             </View>
 
             {/* Display */}
@@ -150,70 +167,51 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: spacing.xl,
     },
     title: {
-        fontSize: 30,
+        ...typography.h1,
+        color: colors.textPrimary,
         fontWeight: '600',
-        color: '#242424',
-        lineHeight: 37.5,
     },
     resetBtn: {
-        paddingHorizontal: 20,
+        paddingHorizontal: spacing.lg,
         paddingVertical: 7,
-        backgroundColor: '#D9F7E3',
-        borderRadius: 138,
+        backgroundColor: colors.primaryLight,
+        borderRadius: ui.radius.pill,
     },
     resetText: {
-        fontSize: 12,
+        ...typography.bodySm,
         fontWeight: '500',
-        color: '#242424',
-        lineHeight: 18,
+        color: colors.textPrimary,
     },
     // Sections
     section: {
-        marginBottom: 24,
+        marginBottom: spacing.xl,
     },
     label: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: 'rgba(0, 0, 0, 0.20)',
-        lineHeight: 24,
-        marginBottom: 9,
+        ...typography.h4,
+        color: colors.textSecondary,
+        marginBottom: spacing.sm + 1,
     },
     labelLight: {
-        fontSize: 16,
-        fontWeight: '400',
-        color: 'rgba(0, 0, 0, 0.20)',
-        lineHeight: 24,
-        marginBottom: 14,
+        ...typography.bodyMd,
+        color: colors.textSecondary,
+        marginBottom: spacing.md + 2,
     },
     // Dropdown
     dropdown: {
-        height: 54,
-        borderRadius: 7,
-        borderWidth: 1,
-        borderColor: '#B2B2B2',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 14,
-    },
-    dropdownText: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#242424',
-        lineHeight: 27,
+        minHeight: ui.inputHeight,
     },
     // Pills
     pillRow: {
         flexDirection: 'row',
-        gap: 7,
+        gap: spacing.sm - 1,
     },
     pill: {
-        paddingVertical: 13,
+        paddingVertical: spacing.md + 1,
         paddingHorizontal: 14,
-        borderRadius: 15,
+        borderRadius: borderRadius.lg,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -224,53 +222,26 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     pillSelected: {
-        backgroundColor: '#D9F7E3',
+        backgroundColor: colors.primaryLight,
         borderWidth: 1,
-        borderColor: '#01CA47',
+        borderColor: colors.primary,
     },
     pillDefault: {
         borderWidth: 1,
-        borderColor: '#B2B2B2',
+        borderColor: colors.textMuted,
     },
     pillText: {
-        fontSize: 18,
+        ...typography.bodyMd,
         fontWeight: '500',
-        lineHeight: 27,
     },
     pillTextSelected: {
-        color: '#01CA47',
+        color: colors.primary,
     },
     pillTextDefault: {
-        color: '#B2B2B2',
+        color: colors.textSecondary,
     },
     // Footer buttons
     footerButtons: {
-        gap: 14,
-    },
-    confirmBtn: {
-        height: 52,
-        backgroundColor: '#242424',
-        borderRadius: 521,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    confirmText: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: 'white',
-        lineHeight: 24,
-    },
-    cancelBtn: {
-        height: 52,
-        backgroundColor: '#F0F0F0',
-        borderRadius: 521,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cancelText: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#242424',
-        lineHeight: 24,
+        gap: spacing.md + 2,
     },
 });

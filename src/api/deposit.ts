@@ -5,6 +5,11 @@ import type {
     DepositMethodsResponse,
     QRReceiveData,
     ReceiveSettings,
+    FiatDepositMethodsResponse,
+    BankDepositPayload,
+    CardDepositPayload,
+    RedeemCodePayload,
+    FiatDepositResponse,
 } from '@app-types/deposit.types';
 
 // ─── Get Deposit Methods ────────────────────────────────────────────────────
@@ -34,6 +39,36 @@ export async function createReceiveRequest(
     settings: ReceiveSettings,
 ): Promise<ApiResponse<QRReceiveData>> {
     const res = await apiClient.post<QRReceiveData>('/deposit/receive', settings);
+    return { success: true, data: res.data };
+}
+
+// ─── Get Fiat Deposit Methods ────────────────────────────────────────────────
+export async function getFiatDepositMethods(): Promise<ApiResponse<FiatDepositMethodsResponse>> {
+    const res = await apiClient.get<FiatDepositMethodsResponse>('/deposit/fiat/methods');
+    return { success: true, data: res.data };
+}
+
+// ─── Submit Bank Transfer Deposit ────────────────────────────────────────────
+export async function submitBankDeposit(
+    payload: BankDepositPayload,
+): Promise<ApiResponse<FiatDepositResponse>> {
+    const res = await apiClient.post<FiatDepositResponse>('/deposit/fiat/bank', payload);
+    return { success: true, data: res.data };
+}
+
+// ─── Submit Card Deposit ─────────────────────────────────────────────────────
+export async function submitCardDeposit(
+    payload: CardDepositPayload,
+): Promise<ApiResponse<FiatDepositResponse>> {
+    const res = await apiClient.post<FiatDepositResponse>('/deposit/fiat/card', payload);
+    return { success: true, data: res.data };
+}
+
+// ─── Redeem Deposit Code ─────────────────────────────────────────────────────
+export async function redeemDepositCode(
+    payload: RedeemCodePayload,
+): Promise<ApiResponse<FiatDepositResponse>> {
+    const res = await apiClient.post<FiatDepositResponse>('/deposit/fiat/redeem', payload);
     return { success: true, data: res.data };
 }
 

@@ -1,15 +1,14 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
     View,
     Text,
     TouchableOpacity,
-    TextInput,
+    Pressable,
     StyleSheet,
-    Alert,
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import {
@@ -21,37 +20,73 @@ import {
     FilterHorizontalFreeIcons,
 } from '@hugeicons/core-free-icons';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import type { ApiResponse } from '@app-types/api.types';
+import type { TransferResponse } from '@app-types/send.types';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
+import Button from '@components/common/Button';
 import BottomSheet from '@components/common/BottomSheet';
 import AssetRow from '@components/wallet/AssetRow';
+import { CryptoIcon, CurrencyIcon } from '@components/icons/CurrencyIcons';
+import Divider from '@components/common/Divider';
+import EmptyState from '@components/common/EmptyState';
+import Input from '@components/common/Input';
+import ScreenHeader from '@components/common/ScreenHeader';
 import SlideToConfirm from '@components/common/SlideToConfirm';
+import SelectField from '@components/forms/SelectField';
 import { useCryptoTransfer } from '@hooks/api/useSend';
 import { useWalletDashboard } from '@hooks/api/useWallet';
 import { useDisplaySettings } from '@hooks/useDisplaySettings';
+import TransferAmountStep from '@components/send/TransferAmountStep';
+import { ui } from '@theme/ui';
+import { handleApiError } from '@utils/errorHandler';
+import MoneyReceiptSheet, { type MoneyReceiptRow } from '@components/common/MoneyReceiptSheet';
+import { formatReceiptDateTime } from '@utils/formatReceipt';
+import { hapticSuccess, hapticWarning } from '@utils/haptics';
+import ApiErrorSheet from '@components/common/ApiErrorSheet';
+
+function formatWalletAddress(addr: string): string {
+    const a = addr.trim();
+    if (a.length <= 20) return a;
+    return `${a.slice(0, 12)}…${a.slice(-8)}`;
+}
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 type Step = 'form' | 'amount';
 
+// Fiat symbols that should NOT appear in crypto transfer
+const FIAT_SYMBOLS = new Set(['USD', 'HKD', 'CNY', 'AUD', 'CAD', 'CHF', 'EUR', 'GBP', 'JPY', 'SGD']);
+
 interface NetworkOption {
     key: string;
     label: string;
     subtitle: string;
-    color: string;
-    initial: string;
+    iconSymbol: string;
+    /** Which crypto symbols this network supports. Empty = all crypto. */
+    symbols?: string[];
 }
 
 const NETWORKS: NetworkOption[] = [
-    { key: 'ERC-20', label: 'Ethereum (ERC20)', subtitle: 'Minimum Deposit 10USDT', color: '#1353F0', initial: 'E' },
-    { key: 'TRC-20', label: 'Tron (TRC20)', subtitle: 'Minimum Deposit 10USDT', color: '#FF060A', initial: 'T' },
-    { key: 'BEP-20', label: 'BNB Smart Chain (BEP20)', subtitle: 'Minimum Deposit 10USDT', color: '#F3BA2F', initial: 'B' },
-    { key: 'PRC-20', label: 'Polygon (PRC20)', subtitle: 'Minimum Deposit 10USDT', color: '#8247E5', initial: 'P' },
-    { key: 'SOL', label: 'Solana (Sol)', subtitle: 'Minimum Deposit 10USDT', color: '#242424', initial: 'S' },
+    { key: 'ERC-20', label: 'Ethereum (ERC20)', subtitle: 'Supports ETH, USDT, ERC-20 tokens', iconSymbol: 'ETH', symbols: ['ETH', 'USDT'] },
+    { key: 'TRC-20', label: 'Tron (TRC20)', subtitle: 'Supports USDT (TRC-20)', iconSymbol: 'TRX', symbols: ['USDT'] },
+    { key: 'BEP-20', label: 'BNB Smart Chain (BEP20)', subtitle: 'Supports BNB, USDT, BEP-20 tokens', iconSymbol: 'BNB', symbols: ['USDT', 'BNB'] },
+    { key: 'BTC', label: 'Bitcoin Network', subtitle: 'Supports BTC only', iconSymbol: 'BTC', symbols: ['BTC'] },
+    { key: 'SOL', label: 'Solana (SOL)', subtitle: 'Supports SOL, SPL tokens', iconSymbol: 'SOL', symbols: ['SOL', 'USDT'] },
 ];
+
+/** Best-effort network hint from pasted/scanned address (user must still confirm). */
+function inferNetworkFromAddress(address: string): string {
+    const a = address.trim();
+    if (/^0x[0-9a-fA-F]{40}$/.test(a)) return 'ERC-20';
+    if (/^bc1[a-zA-HJ-NP-Z0-9]{25,}$/i.test(a) || /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(a)) return 'BTC';
+    if (/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a)) return 'TRC-20';
+    return '';
+}
 
 export default function CryptoTransferScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<RouteProp<AppStackParamList, 'CryptoTransfer'>>();
     const { currency } = useDisplaySettings();
     const dashboard = useWalletDashboard(currency);
     const cryptoTransfer = useCryptoTransfer();
@@ -70,19 +105,57 @@ export default function CryptoTransferScreen(): React.ReactElement {
     // Sheet visibility
     const [currencySheetVisible, setCurrencySheetVisible] = useState(false);
     const [networkSheetVisible, setNetworkSheetVisible] = useState(false);
+    const [receiptOpen, setReceiptOpen] = useState(false);
+    const [receipt, setReceipt] = useState<{
+        headline: string;
+        summary?: string;
+        rows: MoneyReceiptRow[];
+    } | null>(null);
+    const [noticeSheet, setNoticeSheet] = useState<{
+        title: string;
+        message: string;
+        tone: 'error' | 'warning' | 'info';
+    } | null>(null);
 
     // Sort controls for currency sheet
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     const [assetTypeFilter, setAssetTypeFilter] = useState<'all' | 'crypto' | 'fiat'>('all');
 
-    const availableBalance = dashboard.data?.assets?.find(
-        (a) => a.symbol === selectedSymbol,
-    )?.available ?? '0';
+    const cryptoAssets = dashboard.data?.assets?.filter(
+        (a) => !FIAT_SYMBOLS.has(a.symbol),
+    ) ?? [];
+
+    const prefilledAddress = route.params?.prefilledAddress;
+    useEffect(() => {
+        const addr = prefilledAddress?.trim();
+        if (!addr) return;
+        setToAddress(addr);
+        const guessed = inferNetworkFromAddress(addr);
+        if (guessed) setSelectedNetwork(guessed);
+    }, [prefilledAddress]);
+
+    const selectedAsset = useMemo(
+        () => cryptoAssets.find((a) => a.symbol === selectedSymbol),
+        [cryptoAssets, selectedSymbol],
+    );
+
+    const availableBalance = selectedAsset?.available ?? '0';
+
+    // Filter networks that support the selected symbol
+    const availableNetworks = selectedSymbol
+        ? NETWORKS.filter((n) => !n.symbols || n.symbols.includes(selectedSymbol))
+        : NETWORKS;
 
     const handleCurrencySelect = useCallback((symbol: string, name: string) => {
         setSelectedSymbol(symbol);
         setSelectedName(name);
         setCurrencySheetVisible(false);
+        // Reset network if it doesn't support the newly selected symbol
+        setSelectedNetwork((prev) => {
+            const net = NETWORKS.find((n) => n.key === prev);
+            if (net?.symbols && !net.symbols.includes(symbol)) return '';
+            return prev;
+        });
     }, []);
 
     const handleNetworkSelect = useCallback((network: string) => {
@@ -100,15 +173,27 @@ export default function CryptoTransferScreen(): React.ReactElement {
 
     const handleNext = () => {
         if (!selectedSymbol) {
-            Alert.alert('Select Currency', 'Please select a currency first.');
+            setNoticeSheet({
+                title: 'Select currency',
+                message: 'Choose which asset you are sending before continuing.',
+                tone: 'warning',
+            });
             return;
         }
         if (!selectedNetwork) {
-            Alert.alert('Select Network', 'Please select a network.');
+            setNoticeSheet({
+                title: 'Select network',
+                message: 'Pick the blockchain network that matches this address.',
+                tone: 'warning',
+            });
             return;
         }
         if (!toAddress.trim()) {
-            Alert.alert('Wallet Address', 'Please enter a wallet address.');
+            setNoticeSheet({
+                title: 'Wallet address required',
+                message: 'Enter the recipient wallet address to continue.',
+                tone: 'warning',
+            });
             return;
         }
         setStep('amount');
@@ -139,15 +224,38 @@ export default function CryptoTransferScreen(): React.ReactElement {
                 network: selectedNetwork,
             },
             {
-                onSuccess: () => {
-                    Alert.alert(
-                        'Transfer Sent',
-                        `${amount} ${selectedSymbol} sent to ${toAddress.slice(0, 10)}...`,
-                        [{ text: 'OK', onPress: () => navigation.goBack() }],
-                    );
+                onSuccess: (res: ApiResponse<TransferResponse>) => {
+                    hapticSuccess();
+                    const d = res.data;
+                    const ts = formatReceiptDateTime();
+                    const rows: MoneyReceiptRow[] = [
+                        { label: 'To address', value: toAddress.trim(), mono: true, valueNumberOfLines: 8 },
+                        { label: 'Network', value: selectedNetworkOption?.label ?? selectedNetwork },
+                        { label: 'Amount', value: `${d.amount ?? '—'} ${d.currency ?? ''}`.trim() },
+                        { label: 'Fee', value: `${d.fee ?? '—'} ${d.currency ?? ''}`.trim() },
+                        { label: 'Status', value: d.status ?? '—' },
+                        { label: 'Date', value: ts },
+                    ];
+                    if (d.reference?.trim()) {
+                        rows.push({ label: 'Reference', value: d.reference, mono: true });
+                    }
+                    if (d.tx_id?.trim()) {
+                        rows.push({ label: 'Transaction ID', value: d.tx_id, mono: true });
+                    }
+                    setReceipt({
+                        headline: 'Transfer submitted',
+                        summary: `${d.amount} ${d.currency} on ${selectedNetworkOption?.label ?? selectedNetwork}`,
+                        rows,
+                    });
+                    setReceiptOpen(true);
                 },
-                onError: (error: any) => {
-                    Alert.alert('Transfer Failed', error?.message || 'Something went wrong');
+                onError: (error: unknown) => {
+                    hapticWarning();
+                    const e = handleApiError(error);
+                    const message = e.retryable
+                        ? `${e.message}\n\nCheck the address, network, and balance, then try again.`
+                        : e.message;
+                    setNoticeSheet({ title: e.title, message, tone: 'error' });
                 },
             },
         );
@@ -159,163 +267,138 @@ export default function CryptoTransferScreen(): React.ReactElement {
     if (step === 'amount') {
         const displayAmount = amount === '0' ? '0' : amount;
         return (
-            <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => setStep('form')} activeOpacity={0.6} style={styles.backBtn}>
-                        <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Send {selectedSymbol}</Text>
-                    <View style={styles.backBtn} />
-                </View>
-
-                {/* Amount Display */}
-                <View style={styles.amountSection}>
-                    <Text style={styles.amountDisplay} numberOfLines={1} adjustsFontSizeToFit>
-                        {displayAmount}
-                    </Text>
-                    <View style={styles.currencyBadge}>
-                        <Text style={styles.currencyBadgeText}>
-                            {selectedName} ({selectedSymbol})
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Numpad */}
-                <View style={styles.numpad}>
-                    {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['.', '0', 'back']].map((row, ri) => (
-                        <View key={ri} style={styles.numpadRow}>
-                            {row.map((key) => (
-                                <TouchableOpacity
-                                    key={key}
-                                    style={styles.numpadKey}
-                                    onPress={() => handleNumpadPress(key)}
-                                    activeOpacity={0.5}
-                                >
-                                    <Text style={styles.numpadText}>
-                                        {key === 'back' ? '<' : key}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    ))}
-                </View>
-
-                {/* Footer */}
-                <View style={styles.amountFooter}>
-                    <View style={styles.balanceInfoCard}>
-                        <View style={styles.balanceRow}>
-                            <Text style={styles.balanceLabel}>
-                                {availableBalance} {selectedSymbol}
-                            </Text>
-                            <Text style={styles.dailyLimit}>Network: {selectedNetworkOption?.label ?? selectedNetwork}</Text>
-                        </View>
-                    </View>
-                    <SlideToConfirm
-                        onConfirm={handleSlideConfirm}
-                        label={parseFloat(amount) > 0 ? 'Slide to confirm' : 'Slide to continue'}
+            <>
+                <TransferAmountStep
+                    title={`Send ${selectedSymbol}`}
+                    onBackPress={() => setStep('form')}
+                    displayAmount={displayAmount}
+                    badgeLabel={`${selectedName} (${selectedSymbol})`}
+                    infoPrimary={`${availableBalance} ${selectedSymbol}`}
+                    infoSecondary={`Network: ${selectedNetworkOption?.label ?? selectedNetwork}`}
+                    onKeyPress={handleNumpadPress}
+                    onConfirm={handleSlideConfirm}
+                    sliderLabel={parseFloat(amount) > 0 ? 'Slide to confirm' : 'Slide to continue'}
+                    confirmationRows={[
+                        { label: 'Asset', value: `${selectedName} (${selectedSymbol})` },
+                        { label: 'Network', value: selectedNetworkOption?.label ?? selectedNetwork },
+                        { label: 'To address', value: formatWalletAddress(toAddress) },
+                        { label: 'You send', value: `${amount} ${selectedSymbol}` },
+                        ...(note.trim() ? [{ label: 'Note', value: note.trim() }] : []),
+                    ]}
+                    feeBreakdown={{
+                        rows: [
+                            { label: 'Network fee', value: 'Shown on receipt after broadcast' },
+                            { label: 'You authorize', value: `${amount} ${selectedSymbol}` },
+                        ],
+                        footnote:
+                            'Blockchain fees vary by network load. The receipt shows the fee returned by the processor.',
+                    }}
+                />
+                {receipt ? (
+                    <MoneyReceiptSheet
+                        visible={receiptOpen}
+                        onClose={() => setReceiptOpen(false)}
+                        headline={receipt.headline}
+                        summary={receipt.summary}
+                        rows={receipt.rows}
+                        onDone={() => {
+                            setReceiptOpen(false);
+                            setReceipt(null);
+                            navigation.goBack();
+                        }}
                     />
-                </View>
-            </SafeAreaView>
+                ) : null}
+                <ApiErrorSheet
+                    visible={noticeSheet !== null}
+                    onClose={() => setNoticeSheet(null)}
+                    title={noticeSheet?.title ?? ''}
+                    message={noticeSheet?.message ?? ''}
+                    tone={noticeSheet?.tone === 'warning' ? 'warning' : noticeSheet?.tone === 'info' ? 'info' : 'error'}
+                />
+            </>
         );
     }
 
     // ─── Form Screen ────────────────────────────────────────────────────────────
     return (
+        <>
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.6} style={styles.backBtn}>
-                    <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Crypto Transfer</Text>
-                <View style={styles.backBtn} />
-            </View>
+            <ScreenHeader title="Crypto Transfer" onBackPress={() => navigation.goBack()} />
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
                 {/* Currency */}
                 <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Currency</Text>
-                    <TouchableOpacity
-                        style={styles.fieldDropdown}
+                    <SelectField
                         onPress={() => setCurrencySheetVisible(true)}
-                        activeOpacity={0.6}
-                    >
-                        {selectedSymbol ? (
-                            <Text style={styles.fieldValue}>{selectedName} ({selectedSymbol})</Text>
-                        ) : (
-                            <Text style={styles.fieldPlaceholder}>Select Currency</Text>
-                        )}
-                        <HugeiconsIcon icon={ArrowRight01FreeIcons} size={18} color="#B2B2B2" />
-                    </TouchableOpacity>
+                        value={selectedSymbol ? `${selectedName} (${selectedSymbol})` : undefined}
+                        placeholder="Select Currency"
+                        leftAdornment={
+                            selectedSymbol ? (
+                                <CurrencyIcon
+                                    symbol={selectedSymbol}
+                                    size={ui.selectorIconSm}
+                                    iconUrl={selectedAsset?.icon_url}
+                                />
+                            ) : undefined
+                        }
+                    />
                 </View>
 
                 {/* Network */}
                 <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Network</Text>
-                    <TouchableOpacity
-                        style={styles.fieldDropdown}
+                    <SelectField
                         onPress={() => setNetworkSheetVisible(true)}
-                        activeOpacity={0.6}
-                    >
-                        {selectedNetwork ? (
-                            <Text style={styles.fieldValue}>{selectedNetworkOption?.label ?? selectedNetwork}</Text>
-                        ) : (
-                            <Text style={styles.fieldPlaceholder}>Select Network</Text>
-                        )}
-                        <HugeiconsIcon icon={ArrowRight01FreeIcons} size={18} color="#B2B2B2" />
-                    </TouchableOpacity>
+                        value={selectedNetwork ? (selectedNetworkOption?.label ?? selectedNetwork) : undefined}
+                        placeholder="Select Network"
+                        leftAdornment={
+                            selectedNetworkOption ? (
+                                <CryptoIcon
+                                    symbol={selectedNetworkOption.iconSymbol}
+                                    size={ui.selectorIconSm}
+                                />
+                            ) : undefined
+                        }
+                    />
                 </View>
 
                 {/* Wallet Address */}
                 <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Wallet Address</Text>
-                    <View style={styles.addressRow}>
-                        <TextInput
-                            style={styles.addressInput}
-                            placeholder="Enter or paste wallet address"
-                            placeholderTextColor="#B2B2B2"
-                            value={toAddress}
-                            onChangeText={setToAddress}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                        />
-                        <TouchableOpacity style={styles.addressIconBtn} activeOpacity={0.6}>
-                            <HugeiconsIcon icon={Copy01FreeIcons} size={18} color="#B2B2B2" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.addressIconBtn} activeOpacity={0.6}>
-                            <HugeiconsIcon icon={QrCodeFreeIcons} size={18} color="#B2B2B2" />
-                        </TouchableOpacity>
-                    </View>
+                    <Input
+                        value={toAddress}
+                        onChangeText={setToAddress}
+                        placeholder="Enter or paste wallet address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        rightAdornment={
+                            <View style={styles.addressActions}>
+                                <TouchableOpacity style={styles.addressIconBtn} activeOpacity={0.6}>
+                                    <HugeiconsIcon icon={Copy01FreeIcons} size={18} color="#B2B2B2" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.addressIconBtn} activeOpacity={0.6}>
+                                    <HugeiconsIcon icon={QrCodeFreeIcons} size={18} color="#B2B2B2" />
+                                </TouchableOpacity>
+                            </View>
+                        }
+                    />
                 </View>
 
                 {/* Note (Optional) */}
                 <View style={styles.fieldGroup}>
                     <Text style={styles.fieldLabel}>Note (Optional)</Text>
-                    <View style={styles.fieldDropdown}>
-                        <TextInput
-                            style={styles.noteInput}
-                            placeholder="Enter Only Visible to Myself"
-                            placeholderTextColor="#B2B2B2"
-                            value={note}
-                            onChangeText={setNote}
-                        />
-                    </View>
+                    <Input
+                        value={note}
+                        onChangeText={setNote}
+                        placeholder="Enter Only Visible to Myself"
+                    />
                 </View>
             </ScrollView>
 
             {/* Next Button */}
             <View style={styles.formFooter}>
-                <TouchableOpacity
-                    style={[styles.nextBtn, !canProceed && styles.nextBtnDisabled]}
-                    onPress={handleNext}
-                    activeOpacity={0.7}
-                    disabled={!canProceed}
-                >
-                    <Text style={[styles.nextBtnText, !canProceed && styles.nextBtnTextDisabled]}>
-                        Next
-                    </Text>
-                </TouchableOpacity>
+                <Button label="Next" onPress={handleNext} disabled={!canProceed} />
             </View>
 
             {/* ─── Currency Picker Sheet ──────────────────────────────────── */}
@@ -344,7 +427,7 @@ export default function CryptoTransferScreen(): React.ReactElement {
                 </View>
 
                 <View style={styles.assetList}>
-                    {dashboard.data?.assets?.map((asset) => (
+                    {cryptoAssets.length > 0 ? cryptoAssets.map((asset) => (
                         <AssetRow
                             key={asset.symbol}
                             symbol={asset.symbol}
@@ -357,10 +440,12 @@ export default function CryptoTransferScreen(): React.ReactElement {
                             isHidden={false}
                             onPress={() => handleCurrencySelect(asset.symbol, asset.name)}
                         />
-                    )) ?? (
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>Loading assets...</Text>
-                        </View>
+                    )) : (
+                        <EmptyState
+                            title="No crypto assets available"
+                            description="Available crypto balances will appear here once they load."
+                            style={styles.emptyState}
+                        />
                     )}
                 </View>
             </BottomSheet>
@@ -373,29 +458,63 @@ export default function CryptoTransferScreen(): React.ReactElement {
                 title="Network"
                 showBackButton
             >
-                <View style={styles.networkList}>
-                    {NETWORKS.map((network, index) => (
-                        <React.Fragment key={network.key}>
-                            <TouchableOpacity
-                                style={styles.networkRow}
-                                onPress={() => handleNetworkSelect(network.key)}
-                                activeOpacity={0.6}
-                            >
-                                <View style={[styles.networkIcon, { backgroundColor: network.color }]}>
-                                    <Text style={styles.networkIconText}>{network.initial}</Text>
-                                </View>
-                                <View style={styles.networkInfo}>
-                                    <Text style={styles.networkName}>{network.label}</Text>
-                                    <Text style={styles.networkSubtitle}>{network.subtitle}</Text>
-                                </View>
-                                <HugeiconsIcon icon={ArrowRight01FreeIcons} size={18} color="#B2B2B2" />
-                            </TouchableOpacity>
-                            {index < NETWORKS.length - 1 && <View style={styles.networkDivider} />}
-                        </React.Fragment>
-                    ))}
-                </View>
+                {availableNetworks.length ? (
+                    <View style={styles.networkList}>
+                        {availableNetworks.map((network, index) => (
+                            <React.Fragment key={network.key}>
+                                <Pressable
+                                    style={({ pressed }) => [
+                                        styles.networkRow,
+                                        pressed && styles.networkRowPressed,
+                                    ]}
+                                    onPress={() => handleNetworkSelect(network.key)}
+                                >
+                                    <CryptoIcon symbol={network.iconSymbol} size={ui.pickerRowIcon} />
+                                    <View style={styles.networkInfo}>
+                                        <Text style={styles.networkName}>{network.label}</Text>
+                                        <Text style={styles.networkSubtitle}>{network.subtitle}</Text>
+                                    </View>
+                                    <HugeiconsIcon
+                                        icon={ArrowRight01FreeIcons}
+                                        size={ui.iconSize.md}
+                                        color={colors.textMuted}
+                                    />
+                                </Pressable>
+                                {index < availableNetworks.length - 1 && <Divider style={styles.networkDivider} />}
+                            </React.Fragment>
+                        ))}
+                    </View>
+                ) : (
+                    <EmptyState
+                        title="No supported networks"
+                        description="This asset does not have a supported transfer network right now."
+                        style={styles.emptyState}
+                    />
+                )}
             </BottomSheet>
         </SafeAreaView>
+            {receipt ? (
+                <MoneyReceiptSheet
+                    visible={receiptOpen}
+                    onClose={() => setReceiptOpen(false)}
+                    headline={receipt.headline}
+                    summary={receipt.summary}
+                    rows={receipt.rows}
+                    onDone={() => {
+                        setReceiptOpen(false);
+                        setReceipt(null);
+                        navigation.goBack();
+                    }}
+                />
+            ) : null}
+            <ApiErrorSheet
+                visible={noticeSheet !== null}
+                onClose={() => setNoticeSheet(null)}
+                title={noticeSheet?.title ?? ''}
+                message={noticeSheet?.message ?? ''}
+                tone={noticeSheet?.tone === 'warning' ? 'warning' : noticeSheet?.tone === 'info' ? 'info' : 'error'}
+            />
+        </>
     );
 }
 
@@ -439,28 +558,10 @@ const styles = StyleSheet.create({
         lineHeight: 24,
         marginBottom: 10,
     },
-    fieldDropdown: {
-        height: 52,
-        borderRadius: 7,
-        borderWidth: 1,
-        borderColor: '#E8E8E8',
+    addressActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-    },
-    fieldPlaceholder: {
-        fontSize: 16,
-        fontWeight: '400',
-        color: '#B2B2B2',
-        lineHeight: 24,
-    },
-    fieldValue: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#242424',
-        lineHeight: 24,
+        gap: 4,
     },
     addressRow: {
         height: 44,
@@ -556,17 +657,9 @@ const styles = StyleSheet.create({
         borderRadius: 21,
         gap: 15,
     },
-    networkIcon: {
-        width: 55,
-        height: 55,
-        borderRadius: 27.5,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    networkIconText: {
-        fontSize: 24,
-        fontWeight: '600',
-        color: '#FFFFFF',
+    networkRowPressed: {
+        backgroundColor: colors.surface,
+        opacity: 0.96,
     },
     networkInfo: {
         flex: 1,

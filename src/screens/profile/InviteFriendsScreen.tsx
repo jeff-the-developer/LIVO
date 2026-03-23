@@ -38,6 +38,7 @@ import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { useReferralInfo } from '@hooks/api/useSettings';
 import BottomSheet from '@components/common/BottomSheet';
+import QRCardWithLogo from '@components/common/QRCardWithLogo';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -377,7 +378,7 @@ function InviteModal({ visible, onClose, referralCode, referralLink }: {
 
             {/* Two separate floating elements */}
             <View style={modalS.outerWrap} pointerEvents="box-none">
-                {/* 1. Floating card (rounded, separate) */}
+                {/* 1. Floating card carousel (rounded, separate) */}
                 <View style={modalS.cardContainer}>
                     <ScrollView
                         ref={carouselRef}
@@ -770,9 +771,9 @@ const modalS = StyleSheet.create({
         flexDirection: 'row', justifyContent: 'space-around',
         paddingVertical: spacing.lg,
     },
-    actionItem: { alignItems: 'center', gap: spacing.xs },
+    actionItem: { alignItems: 'center', gap: 5, width: 39 },
     actionIconWrap: {
-        width: 48, height: 48, borderRadius: 24,
+        width: 39, height: 39, borderRadius: 243,
         backgroundColor: palette.green50, alignItems: 'center', justifyContent: 'center',
     },
     actionLabel: { ...typography.caption, color: colors.textPrimary, fontWeight: '500' },

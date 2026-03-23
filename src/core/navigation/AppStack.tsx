@@ -49,10 +49,12 @@ import SetPasswordScreen from '@screens/auth/SetPasswordScreen';
 import AccountTypeScreen from '@screens/auth/AccountTypeScreen';
 import PINSetupScreen from '@screens/auth/PINSetupScreen';
 import BiometricSetupScreen from '@screens/auth/BiometricSetupScreen';
+import CreateUsernameScreen from '@screens/auth/CreateUsernameScreen';
 import NotifTransactionsScreen from '@screens/profile/NotifTransactionsScreen';
 import NotifAccountActivitiesScreen from '@screens/profile/NotifAccountActivitiesScreen';
 import NotifMiscellaneousScreen from '@screens/profile/NotifMiscellaneousScreen';
 import AssetDetailScreen from '@screens/home/AssetDetailScreen';
+import AllTransactionsScreen from '@screens/home/AllTransactionsScreen';
 import NotificationsListScreen from '@screens/home/NotificationsListScreen';
 import QRScannerScreen from '@screens/home/QRScannerScreen';
 import DirectTransferScreen from '@screens/send/DirectTransferScreen';
@@ -61,17 +63,17 @@ import BankTransferScreen from '@screens/send/BankTransferScreen';
 import SendGiftsScreen from '@screens/send/SendGiftsScreen';
 import GiftsHistoryScreen from '@screens/send/GiftsHistoryScreen';
 import DepositScreen from '@screens/deposit/DepositScreen';
+import QuickReceiveScreen from '@screens/deposit/QuickReceiveScreen';
 import CryptoReceiveScreen from '@screens/deposit/CryptoReceiveScreen';
+import CashDepositScreen from '@screens/deposit/CashDepositScreen';
+import BankTransferDepositScreen from '@screens/deposit/BankTransferDepositScreen';
+import BankAdditionalInfoScreen from '@screens/deposit/BankAdditionalInfoScreen';
+import RedeemCodeScreen from '@screens/deposit/RedeemCodeScreen';
+import CreditDebitDepositScreen from '@screens/deposit/CreditDebitDepositScreen';
+import AddFundsScreen from '@screens/deposit/AddFundsScreen';
 import SwapScreen from '@screens/swap/SwapScreen';
 import SwapRecordsScreen from '@screens/swap/SwapRecordsScreen';
-import { View, Text } from 'react-native';
-
-// Placeholder screens for Home tab navigation (implemented in future plans)
-const PlaceholderScreen = ({ route }: { route: { name: string } }) => (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text>{route.name} - Coming Soon</Text>
-    </View>
-);
+import TransactionDetailScreen from '@screens/home/TransactionDetailScreen';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -121,14 +123,24 @@ export default function AppStack(): React.ReactElement {
             <Stack.Screen name="PrimaryNationality" component={PrimaryNationalityScreen} />
             <Stack.Screen name="LivoBusiness" component={LivoBusinessScreen} />
             <Stack.Screen name="SwitchAccount" component={SwitchAccountScreen} />
+            {/* Auth routes declared on AppStackParamList — required for in-app flows (e.g. Add Account) */}
+            <Stack.Screen name="Login" component={LoginScreen} options={{ gestureEnabled: false }} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
+            <Stack.Screen name="AccountType" component={AccountTypeScreen} />
+            <Stack.Screen name="PINSetup" component={PINSetupScreen} />
+            <Stack.Screen name="BiometricSetup" component={BiometricSetupScreen} />
             <Stack.Screen name="NotifTransactions" component={NotifTransactionsScreen} />
             <Stack.Screen name="NotifAccountActivities" component={NotifAccountActivitiesScreen} />
             <Stack.Screen name="NotifMiscellaneous" component={NotifMiscellaneousScreen} />
             <Stack.Screen name="VerifyOTP" component={VerifyOTPScreen} />
+            <Stack.Screen name="CreateUsername" component={CreateUsernameScreen} />
             {/* Home tab sub-screens (placeholders) */}
             <Stack.Screen name="AssetDetail" component={AssetDetailScreen} />
-            <Stack.Screen name="TransactionDetail" component={PlaceholderScreen as any} />
-            <Stack.Screen name="AllTransactions" component={PlaceholderScreen as any} />
+            <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
+            <Stack.Screen name="AllTransactions" component={AllTransactionsScreen} />
             <Stack.Screen name="NotificationsList" component={NotificationsListScreen} />
             <Stack.Screen name="QRScanner" component={QRScannerScreen} />
             {/* Send tab sub-screens (placeholders) */}
@@ -139,7 +151,14 @@ export default function AppStack(): React.ReactElement {
             <Stack.Screen name="GiftsHistory" component={GiftsHistoryScreen} />
             {/* Deposit sub-screens */}
             <Stack.Screen name="Deposit" component={DepositScreen} />
+            <Stack.Screen name="QuickReceive" component={QuickReceiveScreen} />
             <Stack.Screen name="CryptoReceive" component={CryptoReceiveScreen} />
+            <Stack.Screen name="CashDeposit" component={CashDepositScreen} />
+            <Stack.Screen name="BankTransferDeposit" component={BankTransferDepositScreen} />
+            <Stack.Screen name="BankAdditionalInfo" component={BankAdditionalInfoScreen} />
+            <Stack.Screen name="RedeemCode" component={RedeemCodeScreen} />
+            <Stack.Screen name="CreditDebitDeposit" component={CreditDebitDepositScreen} />
+            <Stack.Screen name="AddFunds" component={AddFundsScreen} />
             {/* Swap sub-screens */}
             <Stack.Screen name="FXSwap" component={SwapScreen} />
             <Stack.Screen name="SwapRecords" component={SwapRecordsScreen} />

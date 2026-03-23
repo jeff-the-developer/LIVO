@@ -123,8 +123,14 @@ apiClient.interceptors.response.use(
                 return apiClient(originalRequest);
             } catch (refreshError) {
                 processQueue(refreshError, null);
-                await tokenStorage.clearAll();
-                _onSessionExpired?.();
+                // Only clear tokens and expire session if there isn't a
+                // fresh token that was just saved by a concurrent login call
+                const currentToken = await tokenStorage.getToken();
+                const requestToken = originalRequest.headers?.Authorization?.toString().replace('Bearer ', '');
+                if (!currentToken || currentToken === requestToken) {
+                    await tokenStorage.clearAll();
+                    _onSessionExpired?.();
+                }
                 return Promise.reject({
                     code: ErrorCode.AUTH_EXPIRED,
                     message: 'Session expired. Please log in again.',

@@ -2,26 +2,25 @@ import React, { useState } from 'react';
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
     Alert,
-    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { HugeiconsIcon } from '@hugeicons/react-native';
-import { ArrowLeft01FreeIcons } from '@hugeicons/core-free-icons';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { useUpdatePhone, handleApiError } from '@hooks/api/useProfile';
+import AsyncButton from '@components/common/AsyncButton';
+import PhoneField from '@components/forms/PhoneField';
+import ScreenHeader from '@components/common/ScreenHeader';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -77,25 +76,7 @@ export default function EditMobileScreen(): React.ReactElement {
                 style={styles.flex}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-                {/* ─── Header ─────────────────────────────────────────── */}
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.backBtn}
-                        onPress={() => navigation.goBack()}
-                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                        accessibilityLabel="Go back"
-                        accessibilityRole="button"
-                        testID="editmobile-back"
-                    >
-                        <HugeiconsIcon
-                            icon={ArrowLeft01FreeIcons}
-                            size={24}
-                            color={colors.textPrimary}
-                        />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Mobile</Text>
-                    <View style={styles.headerSpacer} />
-                </View>
+                <ScreenHeader title="Mobile" onBackPress={() => navigation.goBack()} />
 
                 <ScrollView
                     style={styles.flex}
@@ -106,34 +87,13 @@ export default function EditMobileScreen(): React.ReactElement {
                     <Text style={styles.label}>Mobile Phone Number</Text>
 
                     {/* ─── Phone Input ─────────────────────────────── */}
-                    <View style={styles.phoneRow}>
-                        <TouchableOpacity
-                            style={styles.codeBtn}
-                            onPress={() => setShowCodePicker(!showCodePicker)}
-                            accessibilityLabel={`Country code ${selectedCode}`}
-                            accessibilityRole="button"
-                            testID="editmobile-code-picker"
-                        >
-                            <Text style={styles.codeFlag}>
-                                {selectedCountry?.flag ?? '🏳️'}
-                            </Text>
-                            <Text style={styles.codeText}>{selectedCode}</Text>
-                            <Text style={styles.codeChevron}>▾</Text>
-                        </TouchableOpacity>
-
-                        <TextInput
-                            style={styles.phoneInput}
-                            placeholder="Enter mobile phone number"
-                            placeholderTextColor={colors.textMuted}
-                            keyboardType="phone-pad"
-                            value={phoneNumber}
-                            onChangeText={setPhoneNumber}
-                            returnKeyType="done"
-                            maxLength={15}
-                            accessibilityLabel="Phone number"
-                            testID="editmobile-phone-input"
-                        />
-                    </View>
+                    <PhoneField
+                        countryCode={`${selectedCountry?.flag ?? '🏳️'} ${selectedCode}`}
+                        phoneNumber={phoneNumber}
+                        onChangePhone={setPhoneNumber}
+                        onPressCountryCode={() => setShowCodePicker(!showCodePicker)}
+                        placeholder="Enter mobile phone number"
+                    />
 
                     {/* ─── Code Picker Dropdown ────────────────────── */}
                     {showCodePicker && (
@@ -168,24 +128,14 @@ export default function EditMobileScreen(): React.ReactElement {
 
                 {/* ─── Continue Button ─────────────────────────────── */}
                 <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={[
-                            styles.continueBtn,
-                            (!isValid || updatePhoneMutation.isPending) && styles.btnDisabled,
-                        ]}
+                    <AsyncButton
+                        label="Continue"
+                        loading={updatePhoneMutation.isPending}
+                        disabled={!isValid}
                         onPress={onContinue}
-                        activeOpacity={0.85}
-                        disabled={!isValid || updatePhoneMutation.isPending}
                         accessibilityLabel="Continue"
-                        accessibilityRole="button"
                         testID="editmobile-continue"
-                    >
-                        {updatePhoneMutation.isPending ? (
-                            <ActivityIndicator color={colors.buttonText} />
-                        ) : (
-                            <Text style={styles.continueText}>Continue</Text>
-                        )}
-                    </TouchableOpacity>
+                    />
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -198,61 +148,10 @@ const styles = StyleSheet.create({
     flex: { flex: 1 },
     scroll: { paddingHorizontal: spacing.base, paddingTop: spacing.sm },
 
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing.base,
-        paddingHorizontal: spacing.base,
-    },
-    backBtn: { width: 36, alignItems: 'flex-start' },
-    headerTitle: {
-        flex: 1,
-        textAlign: 'center',
-        ...typography.h4,
-        color: colors.textPrimary,
-        fontWeight: '700',
-    },
-    headerSpacer: { width: 36 },
-
     label: {
         ...typography.label,
         color: colors.textPrimary,
         marginBottom: spacing.sm,
-    },
-
-    phoneRow: {
-        flexDirection: 'row',
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: borderRadius.input,
-        overflow: 'hidden',
-    },
-    codeBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
-        borderRightWidth: 1,
-        borderRightColor: colors.border,
-        gap: 4,
-    },
-    codeFlag: { fontSize: 16 },
-    codeText: {
-        ...typography.bodyMd,
-        color: colors.textPrimary,
-        fontWeight: '500',
-    },
-    codeChevron: {
-        fontSize: 10,
-        color: colors.textMuted,
-        marginLeft: 2,
-    },
-    phoneInput: {
-        flex: 1,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md,
-        ...typography.bodyMd,
-        color: colors.textPrimary,
     },
 
     codePicker: {
@@ -296,19 +195,5 @@ const styles = StyleSheet.create({
         paddingHorizontal: spacing.base,
         paddingBottom: spacing.base,
         paddingTop: spacing.sm,
-    },
-    continueBtn: {
-        backgroundColor: colors.buttonPrimary,
-        borderRadius: borderRadius.full,
-        paddingVertical: spacing.base,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 52,
-    },
-    btnDisabled: { opacity: 0.4 },
-    continueText: {
-        ...typography.bodyMd,
-        color: colors.buttonText,
-        fontWeight: '600',
     },
 });

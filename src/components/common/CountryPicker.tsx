@@ -3,19 +3,19 @@ import {
     View,
     Text,
     TouchableOpacity,
+    Pressable,
     StyleSheet,
     Modal,
     ScrollView,
-    TextInput,
     KeyboardAvoidingView,
     Platform,
     Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HugeiconsIcon } from '@hugeicons/react-native';
 import { 
     ArrowLeft01FreeIcons, 
-    Search01FreeIcons, 
     AlertCircleFreeIcons,
     Cancel01FreeIcons 
 } from '@hugeicons/core-free-icons';
@@ -23,7 +23,11 @@ import { colors, palette } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
+import { ui } from '@theme/ui';
 import type { CountryOption } from '@api/kyc';
+import { FlagIcon } from '@components/icons/CurrencyIcons';
+import EmptyState from './EmptyState';
+import SearchBar from './SearchBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CountryPickerProps {
@@ -32,6 +36,9 @@ interface CountryPickerProps {
     onSelect: (country: CountryOption) => void;
     onClose: () => void;
     testID?: string;
+    isLoading?: boolean;
+    /** Screen-specific title (default: generic country selection). */
+    title?: string;
 }
 
 // ─── Country Row Component ────────────────────────────────────────────────────
@@ -59,22 +66,28 @@ function CountryRow({
     };
 
     return (
-        <TouchableOpacity
-            style={[
+        <Pressable
+            style={({ pressed }) => [
                 styles.countryRow,
                 country.restricted && styles.countryRowDisabled,
                 disabled && styles.countryRowDisabled,
+                pressed && !disabled && !country.restricted && styles.countryRowPressed,
             ]}
             onPress={handlePress}
-            activeOpacity={0.7}
             accessibilityLabel={country.name}
             accessibilityRole="button"
             disabled={disabled}
             testID={testID}
         >
             <View style={styles.countryContent}>
-                <Text style={styles.flagText}>{country.flag}</Text>
-                <Text 
+                <View style={styles.flagCell}>
+                    <FlagIcon
+                        code={country.code}
+                        size={ui.pickerRowIcon}
+                        fallbackEmoji={country.flag}
+                    />
+                </View>
+                <Text
                     style={[
                         styles.countryName,
                         country.restricted && styles.countryNameDisabled,
@@ -84,7 +97,7 @@ function CountryRow({
                     {country.name}
                 </Text>
             </View>
-            
+
             <View style={styles.countryMeta}>
                 {country.kyc_required && (
                     <View style={styles.kycBadge}>
@@ -103,7 +116,7 @@ function CountryRow({
                     </View>
                 )}
             </View>
-        </TouchableOpacity>
+        </Pressable>
     );
 }
 
@@ -113,6 +126,8 @@ export default function CountryPicker({
     onSelect,
     onClose,
     testID,
+    isLoading = false,
+    title = 'Select country',
 }: CountryPickerProps): React.ReactElement {
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -164,28 +179,17 @@ export default function CountryPicker({
                                 color={colors.textPrimary}
                             />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Primary Nationality</Text>
+                        <Text style={styles.headerTitle}>{title}</Text>
                         <View style={styles.headerSpacer} />
                     </View>
 
                     {/* ─── Search Bar ───────────────────────────────── */}
                     <View style={styles.searchSection}>
-                        <View style={styles.searchBar}>
-                            <HugeiconsIcon
-                                icon={Search01FreeIcons}
-                                size={18}
-                                color={colors.textMuted}
-                            />
-                            <TextInput
-                                style={styles.searchInput}
-                                placeholder="Search by country or region"
-                                placeholderTextColor={colors.textMuted}
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                accessibilityLabel="Search countries"
-                                testID={`${testID}-search`}
-                            />
-                        </View>
+                        <SearchBar
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder="Search by country or region"
+                        />
                     </View>
 
                     {/* ─── Countries List ───────────────────────────── */}
@@ -195,22 +199,26 @@ export default function CountryPicker({
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                     >
-                        {filteredCountries.length === 0 ? (
-                            <View style={styles.emptyState}>
-                                <HugeiconsIcon
-                                    icon={AlertCircleFreeIcons}
-                                    size={32}
-                                    color={colors.textMuted}
-                                />
-                                <Text style={styles.emptyText}>No countries found</Text>
-                                <Text style={styles.emptyHint}>
-                                    Try searching with a different term
-                                </Text>
+                        {isLoading ? (
+                            <View style={styles.loadingState}>
+                                <ActivityIndicator color={colors.primary} />
                             </View>
+                        ) : countries.length === 0 ? (
+                            <EmptyState
+                                title="No countries available"
+                                description="Country data is unavailable right now."
+                                style={styles.emptyState}
+                            />
+                        ) : filteredCountries.length === 0 ? (
+                            <EmptyState
+                                title="No countries found"
+                                description="Try searching with a different term."
+                                style={styles.emptyState}
+                            />
                         ) : (
                             filteredCountries.map((country, index) => (
                                 <CountryRow
-                                    key={`${country.code}-${index}`}
+                                    key={country.code}
                                     country={country}
                                     onPress={() => handleSelect(country)}
                                     testID={`${testID}-country-${index}`}
@@ -276,24 +284,6 @@ const styles = StyleSheet.create({
         paddingVertical: spacing.sm,
         backgroundColor: colors.surface,
     },
-    searchBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.background,
-        borderRadius: borderRadius.input,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    searchInput: {
-        flex: 1,
-        marginLeft: spacing.xs,
-        ...typography.bodyMd,
-        color: colors.textPrimary,
-        paddingVertical: spacing.xs,
-    },
-
     countriesList: {
         flex: 1,
         backgroundColor: colors.background,
@@ -318,12 +308,15 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
+        gap: spacing.md,
     },
-    flagText: {
-        fontSize: 18,
-        marginRight: spacing.sm,
-        width: 24,
-        textAlign: 'center',
+    flagCell: {
+        width: ui.pickerRowIcon + spacing.xs,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    countryRowPressed: {
+        backgroundColor: colors.surface,
     },
     countryName: {
         ...typography.bodyMd,
@@ -366,23 +359,12 @@ const styles = StyleSheet.create({
     },
 
     emptyState: {
-        flex: 1,
+        paddingVertical: spacing.xxl,
+    },
+    loadingState: {
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: spacing.xxl,
-        paddingHorizontal: spacing.base,
-    },
-    emptyText: {
-        ...typography.bodyMd,
-        color: colors.textSecondary,
-        fontWeight: '600',
-        marginTop: spacing.sm,
-        marginBottom: spacing.xs,
-    },
-    emptyHint: {
-        ...typography.caption,
-        color: colors.textMuted,
-        textAlign: 'center',
     },
 
     footer: {

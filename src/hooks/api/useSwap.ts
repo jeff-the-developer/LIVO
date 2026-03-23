@@ -1,4 +1,6 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { txKeys } from '@hooks/api/useTransactions';
+import { walletKeys } from '@hooks/api/useWallet';
 import {
     getSwapPairs,
     getSwapQuote,
@@ -43,8 +45,15 @@ export function useSwapQuote(from: string, to: string, amount: string) {
 
 // ─── Execute Swap ───────────────────────────────────────────────────────────
 export function useExecuteSwap() {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: (payload: SwapRequest) => executeSwap(payload),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: swapKeys.all });
+            queryClient.invalidateQueries({ queryKey: txKeys.all });
+            queryClient.invalidateQueries({ queryKey: walletKeys.all });
+        },
     });
 }
 

@@ -6,7 +6,6 @@ import {
     TextInput,
     StyleSheet,
     ScrollView,
-    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,26 +17,23 @@ import {
     SquareLock02FreeIcons,
 } from '@hugeicons/core-free-icons';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import type { ApiResponse } from '@app-types/api.types';
+import type { SwapResponse } from '@app-types/swap.types';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import BottomSheet from '@components/common/BottomSheet';
 import AssetRow from '@components/wallet/AssetRow';
+import { CurrencyIcon } from '@components/icons/CurrencyIcons';
 import { useSwapQuote, useSwapRate, useExecuteSwap } from '@hooks/api/useSwap';
 import { useWalletDashboard } from '@hooks/api/useWallet';
+import { handleApiError } from '@utils/errorHandler';
 import { useDisplaySettings } from '@hooks/useDisplaySettings';
+import MoneyReceiptSheet, { type MoneyReceiptRow } from '@components/common/MoneyReceiptSheet';
+import { formatReceiptDateTime } from '@utils/formatReceipt';
+import { hapticSuccess, hapticWarning } from '@utils/haptics';
+import ApiErrorSheet from '@components/common/ApiErrorSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
-
-const CURRENCY_FLAGS: Record<string, string> = {
-    USD: 'US', HKD: 'HK', CNY: 'CN', AUD: 'AU', CAD: 'CA',
-    CHF: 'CH', EUR: 'EU', GBP: 'GB', JPY: 'JP', SGD: 'SG',
-    USDT: 'US', BTC: 'BT', ETH: 'ET',
-};
-
-function getFlagEmoji(symbol: string): string {
-    const code = CURRENCY_FLAGS[symbol] ?? 'US';
-    return code.toUpperCase().split('').map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('');
-}
 
 export default function SwapScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
@@ -57,6 +53,17 @@ export default function SwapScreen(): React.ReactElement {
 
     // Picker state
     const [activePicker, setActivePicker] = useState<'from' | 'to' | null>(null);
+    const [receiptOpen, setReceiptOpen] = useState(false);
+    const [receipt, setReceipt] = useState<{
+        headline: string;
+        summary?: string;
+        rows: MoneyReceiptRow[];
+    } | null>(null);
+    const [noticeSheet, setNoticeSheet] = useState<{
+        title: string;
+        message: string;
+        tone: 'error' | 'warning' | 'info';
+    } | null>(null);
 
     // Hooks for rate and quote
     const swapRate = useSwapRate(fromCurrency, toCurrency);
@@ -144,15 +151,50 @@ export default function SwapScreen(): React.ReactElement {
                 amount: fromAmount,
             },
             {
-                onSuccess: (res) => {
-                    Alert.alert(
-                        'Swap Successful',
-                        `Swapped ${res.data.from_amount} ${res.data.from_currency} to ${res.data.to_amount} ${res.data.to_currency}`,
-                        [{ text: 'OK', onPress: () => navigation.goBack() }],
-                    );
+                onSuccess: (res: ApiResponse<SwapResponse>) => {
+                    hapticSuccess();
+                    const d = res.data;
+                    const ts = formatReceiptDateTime();
+                    const rows: MoneyReceiptRow[] = [
+                        {
+                            label: 'You sold',
+                            value: `${d.from_amount ?? '—'} ${d.from_currency ?? ''}`.trim(),
+                        },
+                        {
+                            label: 'You received',
+                            value: `${d.to_amount ?? '—'} ${d.to_currency ?? ''}`.trim(),
+                        },
+                        {
+                            label: 'Rate',
+                            value:
+                                d.rate != null && d.from_currency && d.to_currency
+                                    ? `1 ${d.from_currency} = ${d.rate} ${d.to_currency}`
+                                    : '—',
+                        },
+                        {
+                            label: 'Fee',
+                            value: `${d.fee ?? '—'} ${d.from_currency ?? ''}`.trim(),
+                        },
+                        { label: 'Status', value: d.status ?? '—' },
+                        { label: 'Date', value: ts },
+                    ];
+                    if (d.tx_id?.trim()) {
+                        rows.push({ label: 'Transaction ID', value: d.tx_id, mono: true });
+                    }
+                    setReceipt({
+                        headline: 'Swap complete',
+                        summary: `${d.from_amount} ${d.from_currency} → ${d.to_amount} ${d.to_currency}`,
+                        rows,
+                    });
+                    setReceiptOpen(true);
                 },
-                onError: (error: any) => {
-                    Alert.alert('Swap Failed', error?.message || 'Something went wrong');
+                onError: (error: unknown) => {
+                    hapticWarning();
+                    const e = handleApiError(error);
+                    const message = e.retryable
+                        ? `${e.message}\n\nCheck amounts and try again.`
+                        : e.message;
+                    setNoticeSheet({ title: e.title, message, tone: 'error' });
                 },
             },
         );
@@ -166,6 +208,7 @@ export default function SwapScreen(): React.ReactElement {
     const maxSell = swapQuote.data?.max_amount ?? '10';
 
     return (
+        <>
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
             {/* Header */}
             <View style={styles.header}>
@@ -192,7 +235,7 @@ export default function SwapScreen(): React.ReactElement {
                             activeOpacity={0.6}
                         >
                             <View style={styles.flagCircle}>
-                                <Text style={styles.flagEmoji}>{getFlagEmoji(fromCurrency)}</Text>
+                                <CurrencyIcon symbol={fromCurrency} size={24} />
                             </View>
                             <HugeiconsIcon icon={ArrowRight01FreeIcons} size={20} color="#B2B2B2" />
                         </TouchableOpacity>
@@ -240,7 +283,7 @@ export default function SwapScreen(): React.ReactElement {
                             activeOpacity={0.6}
                         >
                             <View style={styles.flagCircle}>
-                                <Text style={styles.flagEmoji}>{getFlagEmoji(toCurrency)}</Text>
+                                <CurrencyIcon symbol={toCurrency} size={24} />
                             </View>
                             <HugeiconsIcon icon={ArrowRight01FreeIcons} size={20} color="#B2B2B2" />
                         </TouchableOpacity>
@@ -276,6 +319,22 @@ export default function SwapScreen(): React.ReactElement {
                         <Text style={styles.infoLabel}>Max Sell</Text>
                         <Text style={styles.infoValue}>{maxSell} {fromCurrency}</Text>
                     </View>
+                    {swapQuote.data && parseFloat(fromAmount) > 0 ? (
+                        <>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoLabel}>Fee</Text>
+                                <Text style={styles.infoValue}>
+                                    {swapQuote.data.fee} {fromCurrency}
+                                </Text>
+                            </View>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.infoLabel}>You receive</Text>
+                                <Text style={styles.infoValue}>
+                                    {swapQuote.data.to_amount} {toCurrency}
+                                </Text>
+                            </View>
+                        </>
+                    ) : null}
                     <View style={[styles.infoRow, styles.infoRowLast]}>
                         <Text style={styles.infoLabel}>Rate</Text>
                         <Text style={styles.infoValue}>{rateDisplay}</Text>
@@ -357,6 +416,28 @@ export default function SwapScreen(): React.ReactElement {
                 </View>
             </BottomSheet>
         </SafeAreaView>
+            {receipt ? (
+                <MoneyReceiptSheet
+                    visible={receiptOpen}
+                    onClose={() => setReceiptOpen(false)}
+                    headline={receipt.headline}
+                    summary={receipt.summary}
+                    rows={receipt.rows}
+                    onDone={() => {
+                        setReceiptOpen(false);
+                        setReceipt(null);
+                        navigation.goBack();
+                    }}
+                />
+            ) : null}
+            <ApiErrorSheet
+                visible={noticeSheet !== null}
+                onClose={() => setNoticeSheet(null)}
+                title={noticeSheet?.title ?? ''}
+                message={noticeSheet?.message ?? ''}
+                tone={noticeSheet?.tone === 'warning' ? 'warning' : noticeSheet?.tone === 'info' ? 'info' : 'error'}
+            />
+        </>
     );
 }
 

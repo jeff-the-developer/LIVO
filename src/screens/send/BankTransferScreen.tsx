@@ -4,7 +4,6 @@ import {
     Text,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,13 +19,29 @@ import {
     MailSend01FreeIcons,
 } from '@hugeicons/core-free-icons';
 import type { AppStackParamList } from '@app-types/navigation.types';
+import type { ApiResponse } from '@app-types/api.types';
+import type { TransferResponse } from '@app-types/send.types';
 import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
-import BottomSheet from '@components/common/BottomSheet';
 import SlideToConfirm from '@components/common/SlideToConfirm';
+import Button from '@components/common/Button';
+import CountryPicker from '@components/common/CountryPicker';
+import ScreenHeader from '@components/common/ScreenHeader';
+import SelectField from '@components/forms/SelectField';
+import { FlagIcon } from '@components/icons/CurrencyIcons';
 import { useBankTransfer } from '@hooks/api/useSend';
 import { useWalletDashboard } from '@hooks/api/useWallet';
 import { useDisplaySettings } from '@hooks/useDisplaySettings';
+import WalletAssetPickerSheet from '@components/wallet/WalletAssetPickerSheet';
+import TransferAmountStep from '@components/send/TransferAmountStep';
+import { useCountries } from '@hooks/api/useKYC';
+import type { CountryOption } from '@api/kyc';
+import { ui } from '@theme/ui';
+import { handleApiError } from '@utils/errorHandler';
+import MoneyReceiptSheet, { type MoneyReceiptRow } from '@components/common/MoneyReceiptSheet';
+import { formatReceiptDateTime } from '@utils/formatReceipt';
+import { hapticSuccess, hapticWarning } from '@utils/haptics';
+import ApiErrorSheet from '@components/common/ApiErrorSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -63,21 +78,15 @@ const METHODS: MethodCard[] = [
     },
 ];
 
-const CURRENCY_FLAGS: Record<string, string> = {
-    USD: 'US', HKD: 'HK', CNY: 'CN', AUD: 'AU', CAD: 'CA',
-    CHF: 'CH', EUR: 'EU', GBP: 'GB', JPY: 'JP', SGD: 'SG',
-};
-
-function getFlagEmoji(symbol: string): string {
-    const code = CURRENCY_FLAGS[symbol] ?? 'US';
-    return code.toUpperCase().split('').map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('');
-}
+// Crypto symbols that should NOT appear in bank transfer
+const CRYPTO_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'USDT', 'USDC', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX']);
 
 export default function BankTransferScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
     const { currency } = useDisplaySettings();
     const dashboard = useWalletDashboard(currency);
     const bankTransferMutation = useBankTransfer();
+    const countriesQuery = useCountries();
 
     const [step, setStep] = useState<Step>('method');
     const [selectedMethod, setSelectedMethod] = useState<TransferMethod | null>(null);
@@ -86,6 +95,8 @@ export default function BankTransferScreen(): React.ReactElement {
     const [payeeType, setPayeeType] = useState<PayeeType | null>(null);
     const [selectedCurrency, setSelectedCurrency] = useState('');
     const [selectedCountry, setSelectedCountry] = useState('');
+    const [selectedCountryCode, setSelectedCountryCode] = useState('');
+    const [selectedCountryFlag, setSelectedCountryFlag] = useState('');
 
     // Amount state
     const [amount, setAmount] = useState('0');
@@ -93,8 +104,23 @@ export default function BankTransferScreen(): React.ReactElement {
     // Sheet visibility
     const [currencySheetVisible, setCurrencySheetVisible] = useState(false);
     const [countrySheetVisible, setCountrySheetVisible] = useState(false);
+    const [receiptOpen, setReceiptOpen] = useState(false);
+    const [receipt, setReceipt] = useState<{
+        headline: string;
+        summary?: string;
+        rows: MoneyReceiptRow[];
+    } | null>(null);
+    const [noticeSheet, setNoticeSheet] = useState<{
+        title: string;
+        message: string;
+        tone: 'error' | 'warning' | 'info';
+    } | null>(null);
 
-    const availableBalance = dashboard.data?.assets?.find(
+    const fiatAssets = dashboard.data?.assets?.filter(
+        (a) => !CRYPTO_SYMBOLS.has(a.symbol),
+    ) ?? [];
+
+    const availableBalance = fiatAssets.find(
         (a) => a.symbol === selectedCurrency,
     )?.available ?? '0';
 
@@ -110,8 +136,10 @@ export default function BankTransferScreen(): React.ReactElement {
         setCurrencySheetVisible(false);
     }, []);
 
-    const handleCountrySelect = useCallback((country: string) => {
-        setSelectedCountry(country);
+    const handleCountrySelect = useCallback((country: CountryOption) => {
+        setSelectedCountry(country.name);
+        setSelectedCountryCode(country.code);
+        setSelectedCountryFlag(country.flag);
         setCountrySheetVisible(false);
     }, []);
 
@@ -144,16 +172,37 @@ export default function BankTransferScreen(): React.ReactElement {
                 reference: `BANK-${Date.now()}`,
             },
             {
-                onSuccess: () => {
-                    Alert.alert(
-                        'Transfer Initiated',
-                        `${amount} ${selectedCurrency} transfer submitted.`,
-                        [{ text: 'OK', onPress: () => navigation.goBack() }],
-                    );
+                onSuccess: (res: ApiResponse<TransferResponse>) => {
+                    hapticSuccess();
+                    const d = res.data;
+                    const ts = formatReceiptDateTime();
+                    const rows: MoneyReceiptRow[] = [
+                        { label: 'Payee country', value: selectedCountry || '—' },
+                        { label: 'Amount', value: `${d.amount ?? '—'} ${d.currency ?? ''}`.trim() },
+                        { label: 'Fee', value: `${d.fee ?? '—'} ${d.currency ?? ''}`.trim() },
+                        { label: 'Status', value: d.status ?? '—' },
+                        { label: 'Date', value: ts },
+                    ];
+                    if (d.reference?.trim()) {
+                        rows.push({ label: 'Reference', value: d.reference, mono: true });
+                    }
+                    if (d.tx_id?.trim()) {
+                        rows.push({ label: 'Transaction ID', value: d.tx_id, mono: true });
+                    }
+                    setReceipt({
+                        headline: 'Transfer submitted',
+                        summary: `${d.amount} ${d.currency} to ${selectedCountry}`,
+                        rows,
+                    });
+                    setReceiptOpen(true);
                 },
                 onError: (error: unknown) => {
-                    const message = error instanceof Error ? error.message : 'Something went wrong';
-                    Alert.alert('Transfer Failed', message);
+                    hapticWarning();
+                    const e = handleApiError(error);
+                    const message = e.retryable
+                        ? `${e.message}\n\nCheck amounts and details, then try again.`
+                        : e.message;
+                    setNoticeSheet({ title: e.title, message, tone: 'error' });
                 },
             },
         );
@@ -172,61 +221,71 @@ export default function BankTransferScreen(): React.ReactElement {
     // ─── Step 3: Amount Entry ────────────────────────────────────────────────────
     if (step === 'amount') {
         const displayAmount = amount === '0' ? '$0' : `$${amount}`;
+        const routeLabel =
+            selectedMethod === 'account'
+                ? 'Account transfer'
+                : selectedMethod === 'self'
+                  ? 'Self withdrawal'
+                  : selectedMethod === 'payee'
+                    ? 'Registered payee'
+                    : 'Bank transfer';
         return (
-            <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={handleBack} activeOpacity={0.6} style={styles.backBtn}>
-                        <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Transfer</Text>
-                    <View style={styles.backBtn} />
-                </View>
-
-                <View style={styles.amountSection}>
-                    <Text style={styles.amountDisplay} numberOfLines={1} adjustsFontSizeToFit>
-                        {displayAmount}
-                    </Text>
-                    <View style={styles.currencyBadge}>
-                        <Text style={styles.currencyBadgeText}>
-                            {getFlagEmoji(selectedCurrency)} {selectedCurrency}
-                        </Text>
-                    </View>
-                </View>
-
-                <View style={styles.numpad}>
-                    {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['.', '0', 'back']].map((row, ri) => (
-                        <View key={ri} style={styles.numpadRow}>
-                            {row.map((key) => (
-                                <TouchableOpacity
-                                    key={key}
-                                    style={styles.numpadKey}
-                                    onPress={() => handleNumpadPress(key)}
-                                    activeOpacity={0.5}
-                                >
-                                    <Text style={styles.numpadText}>
-                                        {key === 'back' ? '<' : key}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    ))}
-                </View>
-
-                <View style={styles.amountFooter}>
-                    <View style={styles.balanceInfoCard}>
-                        <View style={styles.balanceRow}>
-                            <Text style={styles.balanceLabel}>
-                                ${availableBalance}
-                            </Text>
-                            <Text style={styles.dailyLimit}>Daily Limit: No Limit</Text>
-                        </View>
-                    </View>
-                    <SlideToConfirm
-                        onConfirm={handleSlideConfirm}
-                        label={parseFloat(amount) > 0 ? 'Slide to confirm' : 'Slide to continue'}
+            <>
+                <TransferAmountStep
+                    title="Transfer"
+                    onBackPress={handleBack}
+                    displayAmount={displayAmount}
+                    badgeLabel={selectedCurrency}
+                    infoPrimary={`$${availableBalance}`}
+                    infoSecondary="Daily Limit: No Limit"
+                    onKeyPress={handleNumpadPress}
+                    onConfirm={handleSlideConfirm}
+                    sliderLabel={parseFloat(amount) > 0 ? 'Slide to confirm' : 'Slide to continue'}
+                    confirmationRows={[
+                        { label: 'You send', value: `${amount} ${selectedCurrency}` },
+                        { label: 'Payee country', value: selectedCountry },
+                        {
+                            label: 'Payee type',
+                            value:
+                                payeeType === 'organization'
+                                    ? 'Organization'
+                                    : payeeType === 'individual'
+                                      ? 'Individual'
+                                      : '—',
+                        },
+                        { label: 'Route', value: routeLabel },
+                    ]}
+                    feeBreakdown={{
+                        rows: [
+                            { label: 'LIVO fee', value: `0 ${selectedCurrency}` },
+                            { label: 'You authorize', value: `${amount} ${selectedCurrency}` },
+                        ],
+                        footnote:
+                            'Your bank or intermediaries may charge separate wire or FX fees. Final fees appear on your receipt and statement.',
+                    }}
+                />
+                {receipt ? (
+                    <MoneyReceiptSheet
+                        visible={receiptOpen}
+                        onClose={() => setReceiptOpen(false)}
+                        headline={receipt.headline}
+                        summary={receipt.summary}
+                        rows={receipt.rows}
+                        onDone={() => {
+                            setReceiptOpen(false);
+                            setReceipt(null);
+                            navigation.goBack();
+                        }}
                     />
-                </View>
-            </SafeAreaView>
+                ) : null}
+                <ApiErrorSheet
+                    visible={noticeSheet !== null}
+                    onClose={() => setNoticeSheet(null)}
+                    title={noticeSheet?.title ?? ''}
+                    message={noticeSheet?.message ?? ''}
+                    tone={noticeSheet?.tone === 'warning' ? 'warning' : noticeSheet?.tone === 'info' ? 'info' : 'error'}
+                />
+            </>
         );
     }
 
@@ -234,13 +293,7 @@ export default function BankTransferScreen(): React.ReactElement {
     if (step === 'form') {
         return (
             <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={handleBack} activeOpacity={0.6} style={styles.backBtn}>
-                        <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Initiate Transfer</Text>
-                    <View style={styles.backBtn} />
-                </View>
+                <ScreenHeader title="Initiate Transfer" onBackPress={handleBack} />
 
                 <ScrollView
                     style={styles.scroll}
@@ -323,126 +376,64 @@ export default function BankTransferScreen(): React.ReactElement {
                     {/* Currency */}
                     <View style={styles.formGroup}>
                         <Text style={styles.formLabel}>Currency</Text>
-                        <TouchableOpacity
+                        <SelectField
                             style={styles.formDropdown}
                             onPress={() => setCurrencySheetVisible(true)}
-                            activeOpacity={0.6}
-                        >
-                            <Text
-                                style={
-                                    selectedCurrency
-                                        ? styles.formDropdownValue
-                                        : styles.formDropdownPlaceholder
-                                }
-                            >
-                                {selectedCurrency
-                                    ? `${getFlagEmoji(selectedCurrency)} ${selectedCurrency}`
-                                    : 'Select Receiving Currency'}
-                            </Text>
-                            <HugeiconsIcon icon={ArrowDown01FreeIcons} size={20} color="#B2B2B2" />
-                        </TouchableOpacity>
+                            value={selectedCurrency || undefined}
+                            placeholder="Select Receiving Currency"
+                            leftAdornment={
+                                selectedCurrency ? (
+                                    <FlagIcon code={selectedCurrency} size={ui.selectorIconSm} />
+                                ) : undefined
+                            }
+                        />
                     </View>
 
                     {/* Country */}
                     <View style={styles.formGroup}>
                         <Text style={styles.formLabel}>Country</Text>
-                        <TouchableOpacity
+                        <SelectField
                             style={[styles.formDropdown, styles.formDropdownCountry]}
                             onPress={() => setCountrySheetVisible(true)}
-                            activeOpacity={0.6}
-                        >
-                            <Text
-                                style={
-                                    selectedCountry
-                                        ? styles.formDropdownValue
-                                        : styles.formDropdownPlaceholder
-                                }
-                            >
-                                {selectedCountry || 'Select Payee Account Country'}
-                            </Text>
-                            <HugeiconsIcon icon={ArrowDown01FreeIcons} size={20} color="#B2B2B2" />
-                        </TouchableOpacity>
+                            value={selectedCountry || undefined}
+                            placeholder="Select Payee Account Country"
+                            leftAdornment={
+                                selectedCountry ? (
+                                    <FlagIcon
+                                        code={selectedCountryCode}
+                                        size={ui.selectorIconSm}
+                                        fallbackEmoji={selectedCountryFlag}
+                                    />
+                                ) : undefined
+                            }
+                        />
                     </View>
                 </ScrollView>
 
                 {/* Continue Button */}
                 <View style={styles.formFooter}>
-                    <TouchableOpacity
-                        style={[
-                            styles.continueBtn,
-                            !canContinueForm && styles.continueBtnDisabled,
-                        ]}
-                        onPress={handleFormContinue}
-                        activeOpacity={0.7}
-                        disabled={!canContinueForm}
-                    >
-                        <Text
-                            style={[
-                                styles.continueBtnText,
-                                !canContinueForm && styles.continueBtnTextDisabled,
-                            ]}
-                        >
-                            Continue
-                        </Text>
-                    </TouchableOpacity>
+                    <Button label="Continue" onPress={handleFormContinue} disabled={!canContinueForm} />
                 </View>
 
                 {/* Currency Picker Sheet */}
-                <BottomSheet
+                <WalletAssetPickerSheet
                     visible={currencySheetVisible}
                     onClose={() => setCurrencySheetVisible(false)}
-                    maxHeight="60%"
-                    showBackButton
-                >
-                    <Text style={styles.sheetTitle}>Currency</Text>
-                    <View style={styles.sheetList}>
-                        {Object.keys(CURRENCY_FLAGS).map((cur) => (
-                            <TouchableOpacity
-                                key={cur}
-                                style={[
-                                    styles.sheetRow,
-                                    selectedCurrency === cur && styles.sheetRowSelected,
-                                ]}
-                                onPress={() => handleCurrencySelect(cur)}
-                                activeOpacity={0.6}
-                            >
-                                <Text style={styles.sheetRowFlag}>{getFlagEmoji(cur)}</Text>
-                                <Text style={styles.sheetRowText}>{cur}</Text>
-                                {selectedCurrency === cur && (
-                                    <View style={styles.sheetRowCheck} />
-                                )}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </BottomSheet>
+                    title="Currency"
+                    assets={fiatAssets}
+                    onSelect={(symbol) => handleCurrencySelect(symbol)}
+                    emptyTitle="No fiat assets available"
+                    emptyDescription="Available fiat balances will appear here once they load."
+                />
 
                 {/* Country Picker Sheet */}
-                <BottomSheet
+                <CountryPicker
                     visible={countrySheetVisible}
                     onClose={() => setCountrySheetVisible(false)}
-                    maxHeight="60%"
-                    showBackButton
-                >
-                    <Text style={styles.sheetTitle}>Country</Text>
-                    <View style={styles.sheetList}>
-                        {['United States', 'United Kingdom', 'Australia', 'Canada', 'Hong Kong', 'Singapore', 'Japan', 'Switzerland', 'China'].map((country) => (
-                            <TouchableOpacity
-                                key={country}
-                                style={[
-                                    styles.sheetRow,
-                                    selectedCountry === country && styles.sheetRowSelected,
-                                ]}
-                                onPress={() => handleCountrySelect(country)}
-                                activeOpacity={0.6}
-                            >
-                                <Text style={styles.sheetRowText}>{country}</Text>
-                                {selectedCountry === country && (
-                                    <View style={styles.sheetRowCheck} />
-                                )}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </BottomSheet>
+                    countries={countriesQuery.data ?? []}
+                    onSelect={handleCountrySelect}
+                    title="Payee country"
+                />
             </SafeAreaView>
         );
     }
@@ -450,13 +441,7 @@ export default function BankTransferScreen(): React.ReactElement {
     // ─── Step 1: Method Selection ────────────────────────────────────────────────
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.6} style={styles.backBtn}>
-                    <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color="#242424" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Transfer</Text>
-                <View style={styles.backBtn} />
-            </View>
+            <ScreenHeader title="Transfer" onBackPress={() => navigation.goBack()} />
 
             <ScrollView
                 style={styles.scroll}

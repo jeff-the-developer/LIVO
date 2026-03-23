@@ -18,7 +18,12 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { getCountries, type CountryOption } from '@api/kyc';
+import Button from '@components/common/Button';
 import CountryPicker from '@components/common/CountryPicker';
+import EmptyState from '@components/common/EmptyState';
+import ScreenHeader from '@components/common/ScreenHeader';
+import SelectField from '@components/forms/SelectField';
+import StatusBadge from '@components/common/StatusBadge';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 type Route = RouteProp<AppStackParamList, 'PrimaryNationality'>;
@@ -104,40 +109,20 @@ export default function PrimaryNationalityScreen(): React.ReactElement {
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-            {/* ─── Header ──────────────────────────────────── */}
-            <View style={styles.header}>
-                <TouchableOpacity
-                    style={styles.backBtn}
-                    onPress={() => navigation.goBack()}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    accessibilityLabel="Go back"
-                    accessibilityRole="button"
-                    testID="nationality-back"
-                >
-                    <HugeiconsIcon
-                        icon={ArrowLeft01FreeIcons}
-                        size={24}
-                        color={colors.textPrimary}
-                    />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Primary Nationality</Text>
-                <View style={styles.headerSpacer} />
-            </View>
+            <ScreenHeader title="Primary Nationality" onBackPress={() => navigation.goBack()} />
 
             {/* ─── Content ─────────────────────────────────── */}
             <View style={styles.content}>
                 {selectedCountry ? (
                     <View style={styles.selectedContainer}>
                         <Text style={styles.selectedLabel}>Selected nationality:</Text>
-                        <View style={styles.selectedCountry}>
-                            <Text style={styles.selectedFlag}>{selectedCountry.flag}</Text>
-                            <Text style={styles.selectedName}>{selectedCountry.name}</Text>
-                            {selectedCountry.kyc_required && (
-                                <View style={styles.kycBadge}>
-                                    <Text style={styles.kycBadgeText}>KYC Required</Text>
-                                </View>
-                            )}
-                        </View>
+                        <SelectField
+                            value={selectedCountry.name}
+                            placeholder="Select nationality"
+                            onPress={() => setShowPicker(true)}
+                            leftAdornment={<Text style={styles.selectedFlag}>{selectedCountry.flag}</Text>}
+                        />
+                        {selectedCountry.kyc_required ? <StatusBadge label="KYC Required" tone="warning" /> : null}
                         
                         <TouchableOpacity
                             style={styles.changeBtn}
@@ -151,39 +136,25 @@ export default function PrimaryNationalityScreen(): React.ReactElement {
                         </TouchableOpacity>
                     </View>
                 ) : (
-                    <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyTitle}>Select Your Nationality</Text>
-                        <Text style={styles.emptyText}>
-                            Choose your primary nationality to continue with the verification process.
-                        </Text>
-                        
-                        <TouchableOpacity
-                            style={styles.selectBtn}
-                            onPress={() => setShowPicker(true)}
-                            activeOpacity={0.85}
-                            accessibilityLabel="Select nationality"
-                            accessibilityRole="button"
-                            testID="nationality-select"
-                        >
-                            <Text style={styles.selectBtnText}>Select Nationality</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <EmptyState
+                        title="Select Your Nationality"
+                        description="Choose your primary nationality to continue with the verification process."
+                        actionLabel="Select Nationality"
+                        onAction={() => setShowPicker(true)}
+                        style={styles.emptyContainer}
+                    />
                 )}
             </View>
 
             {/* ─── Footer ──────────────────────────────────── */}
             {selectedCountry && (
                 <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={styles.confirmBtn}
+                    <Button
+                        label="Confirm"
                         onPress={handleConfirm}
-                        activeOpacity={0.85}
                         accessibilityLabel="Confirm nationality selection"
-                        accessibilityRole="button"
                         testID="nationality-confirm"
-                    >
-                        <Text style={styles.confirmBtnText}>Confirm</Text>
-                    </TouchableOpacity>
+                    />
                 </View>
             )}
 
@@ -194,6 +165,8 @@ export default function PrimaryNationalityScreen(): React.ReactElement {
                 onSelect={handleCountrySelect}
                 onClose={() => setShowPicker(false)}
                 testID="nationality-picker"
+                isLoading={loading}
+                title="Primary Nationality"
             />
         </SafeAreaView>
     );

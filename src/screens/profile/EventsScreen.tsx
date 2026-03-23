@@ -27,6 +27,7 @@ import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import { useEvents } from '@hooks/api/useEvents';
 import type { AppEvent, EventStatus, EventCategory } from '@api/events';
+import StatusBadge from '@components/common/StatusBadge';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const livoIcon = require('@assets/images/branding/logo_gradient_icon.png');
@@ -57,15 +58,14 @@ function getCategoryConfig(category: EventCategory) {
     }
 }
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-function getStatusBadge(status: EventStatus) {
+function getEventStatusTone(status: EventStatus) {
     switch (status) {
         case 'live':
-            return { color: palette.red, bgColor: palette.redLight, label: 'Live' };
+            return 'error' as const;
         case 'upcoming':
-            return { color: colors.primary, bgColor: palette.green50, label: 'Upcoming' };
+            return 'success' as const;
         case 'ended':
-            return { color: colors.textMuted, bgColor: palette.gray100, label: 'Ended' };
+            return 'neutral' as const;
     }
 }
 
@@ -81,7 +81,6 @@ function formatEventDate(iso: string): string {
 // ─── Event Card ───────────────────────────────────────────────────────────────
 function EventCard({ event }: { event: AppEvent }): React.ReactElement {
     const catConfig = getCategoryConfig(event.category);
-    const statusConfig = getStatusBadge(event.status);
 
     const onCTA = () => {
         if (event.cta_url) {
@@ -102,11 +101,10 @@ function EventCard({ event }: { event: AppEvent }): React.ReactElement {
                         {catConfig.label}
                     </Text>
                 </View>
-                <View style={[cardStyles.tag, { backgroundColor: statusConfig.bgColor }]}>
-                    <Text style={[cardStyles.tagText, { color: statusConfig.color }]}>
-                        {statusConfig.label}
-                    </Text>
-                </View>
+                <StatusBadge
+                    label={event.status === 'ended' ? 'Ended' : event.status === 'live' ? 'Live' : 'Upcoming'}
+                    tone={getEventStatusTone(event.status)}
+                />
             </View>
 
             {/* Title + Description */}

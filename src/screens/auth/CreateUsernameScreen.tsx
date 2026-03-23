@@ -31,6 +31,7 @@ import {
     useCreateUsername,
     handleApiError,
 } from '@hooks/api/useAuth';
+import { useAuthStore } from '@stores/authStore';
 
 type Nav = NativeStackNavigationProp<RootNavigatorParamList>;
 type RouteProps = NativeStackScreenProps<RootNavigatorParamList, 'CreateUsername'>['route'];
@@ -155,7 +156,7 @@ function UsernameInfoModal({
 export default function CreateUsernameScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
     const route = useRoute<RouteProps>();
-    const { mode, userId, currentUsername } = route.params;
+    const { mode, userId, currentUsername } = route.params ?? { mode: 'register' as const };
 
     const isRegister = mode === 'register';
 
@@ -217,8 +218,14 @@ export default function CreateUsernameScreen(): React.ReactElement {
         }
 
         try {
+            const resolvedUserId =
+                userId ?? useAuthStore.getState().user?.user_id ?? '';
+            if (!resolvedUserId) {
+                setError('Missing user id. Please sign in again.');
+                return;
+            }
             await createMutation.mutateAsync({
-                user_id: userId ?? 'mock-user-001',
+                user_id: resolvedUserId,
                 username,
             });
 
@@ -226,8 +233,8 @@ export default function CreateUsernameScreen(): React.ReactElement {
                 // Edit profile mode — just go back
                 navigation.goBack();
             } else {
-                // Register mode — navigate to MainTabs since PIN Setup endpoint isn't ready.
-                navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+                // Mandatory onboarding: username → PIN (see BACKEND_AUTH_RECOMMENDATIONS.md)
+                navigation.navigate('PINSetup');
             }
         } catch (e) {
             const apiErr = handleApiError(e);

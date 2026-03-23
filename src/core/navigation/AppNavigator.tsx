@@ -3,6 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { useAuthStore } from '@stores/authStore';
 import { colors } from '@theme/colors';
+import { needsAuthOnboarding } from '@utils/authOnboarding';
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
 
@@ -25,6 +26,10 @@ const DEV_SKIP_AUTH = false;
 export default function AppNavigator(): React.ReactElement {
     const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
     const isHydrated = useAuthStore((s) => s.isHydrated);
+    const user = useAuthStore((s) => s.user);
+
+    const resumeOnboarding =
+        !DEV_SKIP_AUTH && isLoggedIn && user != null && needsAuthOnboarding(user);
 
     if (!isHydrated && !DEV_SKIP_AUTH) {
         return (
@@ -43,7 +48,15 @@ export default function AppNavigator(): React.ReactElement {
 
     return (
         <NavigationContainer theme={navTheme}>
-            {(isLoggedIn || DEV_SKIP_AUTH) ? <AppStack /> : <AuthStack />}
+            {DEV_SKIP_AUTH ? (
+                <AppStack />
+            ) : resumeOnboarding ? (
+                <AuthStack key="onboarding-resume" resumeOnboarding />
+            ) : isLoggedIn ? (
+                <AppStack />
+            ) : (
+                <AuthStack key="guest" />
+            )}
         </NavigationContainer>
     );
 }

@@ -3,6 +3,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image, StyleSheet } from 'react-native';
 import type { MainTabParamList } from '@app-types/navigation.types';
 import { colors } from '@theme/colors';
+import { spacing } from '@theme/spacing';
+import { typography } from '@theme/typography';
+import { ui } from '@theme/ui';
 
 import HomeScreen from '@screens/home/HomeScreen';
 import CardsScreen from '@screens/cards/CardsScreen';
@@ -67,16 +70,16 @@ export default function MainTabs(): React.ReactElement {
                     backgroundColor: colors.tabBarBg,
                     borderTopColor: colors.border,
                     borderTopWidth: 1,
-                    height: 88,
-                    paddingBottom: 30,
-                    paddingTop: 10,
+                    height: ui.tabBarHeight,
+                    paddingBottom: spacing.xl,
+                    paddingTop: spacing.sm,
                 },
                 tabBarActiveTintColor: colors.tabBarActive,
                 tabBarInactiveTintColor: colors.tabBarInactive,
                 tabBarLabelStyle: {
-                    fontSize: 11,
+                    ...typography.caption,
                     fontWeight: '600',
-                    marginTop: 4,
+                    marginTop: spacing.xs,
                 },
             })}
         >
@@ -92,7 +95,7 @@ export default function MainTabs(): React.ReactElement {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
     icon: {
-        width: 26,
-        height: 26,
+        width: ui.iconSize.lg,
+        height: ui.iconSize.lg,
     },
 });

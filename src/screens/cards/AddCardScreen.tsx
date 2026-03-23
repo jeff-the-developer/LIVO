@@ -31,6 +31,9 @@ import type { AppStackParamList } from '@app-types/navigation.types';
 import BottomSheet from '@components/common/BottomSheet';
 import CardCouponSheet from './CardCouponSheet';
 import type { CardCouponSelection, CardTier } from './CardCouponSheet';
+import CurrencyPickerSheet from '@components/wallet/CurrencyPickerSheet';
+import Button from '@components/common/Button';
+import SheetStateBlock from '@components/common/SheetStateBlock';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -43,87 +46,6 @@ const CARD_IMAGES: Record<CardTier, any> = {
     Elite: require('@assets/images/cards/elite_card.png'),
     Prestige: require('@assets/images/cards/prestige_card.png'),
 };
-
-// ─── Card Currency Sheet ──────────────────────────────────────────────────────
-function CardCurrencySheet({
-    visible,
-    selected,
-    onSelect,
-    onClose,
-}: {
-    visible: boolean;
-    selected: CardCurrency | null;
-    onSelect: (currency: CardCurrency) => void;
-    onClose: () => void;
-}): React.ReactElement {
-    const currencies: CardCurrency[] = ['USD', 'HKD'];
-    const [tempSelected, setTempSelected] = useState<CardCurrency | null>(selected);
-
-    const onNext = () => {
-        if (tempSelected) {
-            onSelect(tempSelected);
-            onClose();
-        }
-    };
-
-    return (
-        <BottomSheet visible={visible} onClose={onClose}>
-            <View style={csStyles.container}>
-                {/* Back */}
-                <TouchableOpacity
-                    onPress={onClose}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    accessibilityLabel="Go back"
-                    testID="currency-back"
-                >
-                    <HugeiconsIcon icon={ArrowLeft01FreeIcons} size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
-
-                {/* Icon */}
-                <View style={csStyles.iconWrap}>
-                    <Text style={csStyles.iconEmoji}>💳</Text>
-                </View>
-
-                <Text style={csStyles.title}>Card Currency</Text>
-
-                {/* Options */}
-                {currencies.map((c) => (
-                    <TouchableOpacity
-                        key={c}
-                        style={csStyles.option}
-                        onPress={() => setTempSelected(c)}
-                        activeOpacity={0.7}
-                        accessibilityLabel={`Select ${c}`}
-                        accessibilityRole="radio"
-                        testID={`currency-${c.toLowerCase()}`}
-                    >
-                        <Text style={csStyles.optionLabel}>{c}</Text>
-                        <View style={[csStyles.radio, tempSelected === c && csStyles.radioSelected]}>
-                            {tempSelected === c && (
-                                <HugeiconsIcon icon={Tick02FreeIcons} size={14} color="#FFFFFF" />
-                            )}
-                        </View>
-                    </TouchableOpacity>
-                ))}
-
-                {/* Next Button */}
-                <TouchableOpacity
-                    style={[csStyles.nextBtn, !tempSelected && csStyles.nextBtnDisabled]}
-                    onPress={onNext}
-                    disabled={!tempSelected}
-                    activeOpacity={0.85}
-                    accessibilityLabel="Next"
-                    accessibilityRole="button"
-                    testID="currency-next"
-                >
-                    <Text style={[csStyles.nextBtnText, !tempSelected && csStyles.nextBtnTextDisabled]}>
-                        Next
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </BottomSheet>
-    );
-}
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function AddCardScreen(): React.ReactElement {
@@ -434,33 +356,28 @@ export default function AddCardScreen(): React.ReactElement {
             </KeyboardAvoidingView>
 
             {/* Currency Sheet */}
-            <CardCurrencySheet
+            <CurrencyPickerSheet
                 visible={showCurrencySheet}
-                selected={currency}
-                onSelect={setCurrency}
+                title="Card Currency"
+                selectedCurrency={currency ?? ''}
+                currencies={[
+                    { code: 'USD', name: 'US Dollar', flag: 'US' },
+                    { code: 'HKD', name: 'Hong Kong Dollar', flag: 'HK' },
+                ]}
+                onSelect={(code) => setCurrency(code as CardCurrency)}
                 onClose={() => setShowCurrencySheet(false)}
             />
 
             {/* ─── Success Sheet ───────────────────────────────────── */}
             <BottomSheet visible={showSuccess} onClose={onSuccessOkay}>
                 <View style={resultS.content}>
-                    <View style={resultS.successIcon}>
-                        <HugeiconsIcon icon={Tick02FreeIcons} size={28} color={colors.textPrimary} />
-                    </View>
-                    <Text style={resultS.title}>
-                        The card has been{`\n`}successfully added
-                    </Text>
+                    <SheetStateBlock tone="success" title={`The card has been\nsuccessfully added`} />
                     <View style={resultS.footer}>
-                        <TouchableOpacity
-                            style={resultS.okBtn}
+                        <Button
+                            label="Okay"
                             onPress={onSuccessOkay}
-                            activeOpacity={0.85}
-                            accessibilityLabel="Okay"
-                            accessibilityRole="button"
                             testID="add-card-success-ok"
-                        >
-                            <Text style={resultS.okBtnText}>Okay</Text>
-                        </TouchableOpacity>
+                        />
                     </View>
                 </View>
             </BottomSheet>
@@ -468,25 +385,17 @@ export default function AddCardScreen(): React.ReactElement {
             {/* ─── Failure Sheet ───────────────────────────────────── */}
             <BottomSheet visible={showFailure} onClose={onRetry}>
                 <View style={resultS.content}>
-                    <View style={resultS.failIcon}>
-                        <HugeiconsIcon icon={Cancel01FreeIcons} size={28} color={palette.red} />
-                    </View>
-                    <Text style={resultS.title}>Operation Failed</Text>
-                    <Text style={resultS.body}>
-                        Card could not be added, please try again or contact
-                        customer service.
-                    </Text>
+                    <SheetStateBlock
+                        tone="error"
+                        title="Operation Failed"
+                        description="Card could not be added, please try again or contact customer service."
+                    />
                     <View style={resultS.footer}>
-                        <TouchableOpacity
-                            style={resultS.okBtn}
+                        <Button
+                            label="Try Again"
                             onPress={onRetry}
-                            activeOpacity={0.85}
-                            accessibilityLabel="Try Again"
-                            accessibilityRole="button"
                             testID="add-card-failure-retry"
-                        >
-                            <Text style={resultS.okBtnText}>Try Again</Text>
-                        </TouchableOpacity>
+                        />
                     </View>
                 </View>
             </BottomSheet>
@@ -713,77 +622,6 @@ const s = StyleSheet.create({
         ...typography.bodyMd,
         color: colors.textPrimary,
         fontWeight: '600',
-    },
-});
-
-// ─── Currency Sheet Styles ────────────────────────────────────────────────────
-const csStyles = StyleSheet.create({
-    container: {
-        paddingBottom: spacing.base,
-    },
-    iconWrap: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: '#E8F8F0',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: spacing.lg,
-        marginBottom: spacing.base,
-    },
-    iconEmoji: {
-        fontSize: 24,
-    },
-    title: {
-        ...typography.h2,
-        color: colors.textPrimary,
-        fontWeight: '800',
-        marginBottom: spacing.lg,
-    },
-    option: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: spacing.md,
-        borderBottomWidth: 0.5,
-        borderBottomColor: colors.border,
-    },
-    optionLabel: {
-        ...typography.bodyMd,
-        color: colors.textPrimary,
-    },
-    radio: {
-        width: 22,
-        height: 22,
-        borderRadius: 4,
-        borderWidth: 1.5,
-        borderColor: colors.border,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    radioSelected: {
-        backgroundColor: colors.textPrimary,
-        borderColor: colors.textPrimary,
-    },
-    nextBtn: {
-        backgroundColor: colors.surface,
-        borderRadius: borderRadius.full,
-        paddingVertical: spacing.base,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 52,
-        marginTop: spacing.xxl,
-    },
-    nextBtnDisabled: {
-        opacity: 0.6,
-    },
-    nextBtnText: {
-        ...typography.bodyMd,
-        color: colors.textPrimary,
-        fontWeight: '600',
-    },
-    nextBtnTextDisabled: {
-        color: colors.textMuted,
     },
 });
 

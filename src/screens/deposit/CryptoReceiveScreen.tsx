@@ -5,10 +5,8 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
-    Share,
-    Linking,
+    ActivityIndicator,
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,18 +18,17 @@ import {
     Alert02FreeIcons,
     Tick02FreeIcons,
     FilterHorizontalFreeIcons,
-    Bookmark01FreeIcons,
-    Link01FreeIcons,
-    Mail01FreeIcons,
-    Share04FreeIcons,
 } from '@hugeicons/core-free-icons';
+import * as Clipboard from 'expo-clipboard';
 import type { AppStackParamList } from '@app-types/navigation.types';
-import { colors, palette } from '@theme/colors';
+import { colors } from '@theme/colors';
 import { spacing } from '@theme/spacing';
 import BottomSheet from '@components/common/BottomSheet';
 import AssetRow from '@components/wallet/AssetRow';
-import { useWalletDashboard } from '@hooks/api/useWallet';
-import { useDisplaySettings } from '@hooks/useDisplaySettings';
+import QRCardWithLogo from '@components/common/QRCardWithLogo';
+import ShareQRModal from '@components/common/ShareQRModal';
+import { useWalletAssets } from '@hooks/api/useWallet';
+import { useDepositAddresses } from '@hooks/api/useDeposit';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -46,14 +43,27 @@ interface NetworkOption {
     color: string;
     letter: string;
     minDeposit: string;
+    contract: string;
+    confirmation: string;
+    fallbackAddress: string;
 }
 
 const NETWORKS: NetworkOption[] = [
-    { id: 'erc20', name: 'Ethereum (ERC20)', color: '#1353F0', letter: 'E', minDeposit: '10USDT' },
-    { id: 'trc20', name: 'Tron (TRC20)', color: '#FF060A', letter: 'T', minDeposit: '10USDT' },
-    { id: 'bep20', name: 'BNB Smart Chain (BEP20)', color: '#F3BA2F', letter: 'B', minDeposit: '10USDT' },
-    { id: 'prc20', name: 'Polygon (PRC20)', color: '#8247E5', letter: 'P', minDeposit: '10USDT' },
-    { id: 'sol', name: 'Solana (Sol)', color: '#242424', letter: 'S', minDeposit: '10USDT' },
+    { id: 'erc20', name: 'Ethereum (ERC20)', color: '#1353F0', letter: 'E', minDeposit: '10 USDT', contract: '*31ec7', confirmation: '32', fallbackAddress: '0x387e8882cafb5f2f36b3a17c23e42b2b3564ef1a' },
+    { id: 'trc20', name: 'Tron (TRC20)', color: '#FF060A', letter: 'T', minDeposit: '10 USDT', contract: '*a614f', confirmation: '20', fallbackAddress: 'TQn9Y2khDD95HnLJvkHpFQLCqJNSK5P4M6' },
+    { id: 'bep20', name: 'BNB Smart Chain (BEP20)', color: '#F3BA2F', letter: 'B', minDeposit: '10 USDT', contract: '*55d39', confirmation: '15', fallbackAddress: '0x387e8882cafb5f2f36b3a17c23e42b2b3564ef1a' },
+    { id: 'prc20', name: 'Polygon (PRC20)', color: '#8247E5', letter: 'P', minDeposit: '10 USDT', contract: '*c2132', confirmation: '300', fallbackAddress: '0x387e8882cafb5f2f36b3a17c23e42b2b3564ef1a' },
+    { id: 'sol', name: 'Solana (Sol)', color: '#242424', letter: 'S', minDeposit: '10 USDT', contract: '*Es9vM', confirmation: '32', fallbackAddress: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU' },
+];
+
+// ─── Fallback until GET /deposit/supported-assets is live ────────────────────
+const FALLBACK_CRYPTO_ASSETS = [
+    { symbol: 'USDT', name: 'Tether', icon_url: '', price: '1.00', change_24h: '0.00', networks: ['erc20', 'trc20', 'bep20'] },
+    { symbol: 'BTC',  name: 'Bitcoin', icon_url: '', price: '0', change_24h: '0.00', networks: ['btc'] },
+    { symbol: 'ETH',  name: 'Ethereum', icon_url: '', price: '0', change_24h: '0.00', networks: ['erc20'] },
+    { symbol: 'SOL',  name: 'Solana', icon_url: '', price: '0', change_24h: '0.00', networks: ['sol'] },
+    { symbol: 'BNB',  name: 'BNB', icon_url: '', price: '0', change_24h: '0.00', networks: ['bep20'] },
+    { symbol: 'MATIC', name: 'Polygon', icon_url: '', price: '0', change_24h: '0.00', networks: ['prc20'] },
 ];
 
 const DEPOSIT_NOTES = [
@@ -64,14 +74,11 @@ const DEPOSIT_NOTES = [
     'Use screening tool to check sending wallet. High risk deposit will not be credited and incur 30 USD refund fee',
 ];
 
-const MOCK_WALLET_ADDRESS = '0x387e8882cafb5f2f36b3a17c23e42b2b3564ef1a';
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function CryptoReceiveScreen(): React.ReactElement {
     const navigation = useNavigation<Nav>();
-    const { currency } = useDisplaySettings();
-    const dashboard = useWalletDashboard(currency);
+    const supportedAssets = useWalletAssets(undefined, 'crypto');
 
     // Step state
     const [step, setStep] = useState<Step>('currency');
@@ -86,12 +93,21 @@ export default function CryptoReceiveScreen(): React.ReactElement {
     const [shareVisible, setShareVisible] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    // Sort controls (no-op for now)
+    // Sort controls
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
-    const allNotesChecked = checkedNotes.every(Boolean);
+    // ─── Fetch real deposit addresses from backend ────────────────────────────
+    const depositAddressQuery = useDepositAddresses(selectedCurrency);
 
+    // Filter addresses by the selected network
     const selectedNetworkOption = NETWORKS.find((n) => n.id === selectedNetwork);
+
+    const walletAddress =
+        depositAddressQuery.data?.addresses?.find(
+            (a) => a.network.toLowerCase() === selectedNetwork.toLowerCase()
+        )?.address ?? selectedNetworkOption?.fallbackAddress ?? '';
+
+    const allNotesChecked = checkedNotes.every(Boolean);
 
     // ─── Handlers ────────────────────────────────────────────────────────────────
 
@@ -133,37 +149,20 @@ export default function CryptoReceiveScreen(): React.ReactElement {
     }, []);
 
     const handleCopyAddress = useCallback(async () => {
-        await Clipboard.setStringAsync(MOCK_WALLET_ADDRESS);
+        if (!walletAddress) return;
+        await Clipboard.setStringAsync(walletAddress);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-    }, []);
-
-    const handleSharePress = useCallback(async () => {
-        try {
-            await Share.share({
-                message: `My ${selectedCurrencyName} deposit address (${selectedNetworkOption?.name ?? ''}): ${MOCK_WALLET_ADDRESS}`,
-                title: 'LIVOPay - Deposit Address',
-            });
-        } catch {
-            // User cancelled
-        }
-    }, [selectedCurrencyName, selectedNetworkOption]);
-
-    const handleMailPress = useCallback(() => {
-        Linking.openURL(
-            `mailto:?subject=My LIVOPay Deposit Address&body=${encodeURIComponent(
-                `My ${selectedCurrencyName} deposit address (${selectedNetworkOption?.name ?? ''}):\n${MOCK_WALLET_ADDRESS}`
-            )}`
-        );
-    }, [selectedCurrencyName, selectedNetworkOption]);
-
-    const handleCopyLink = useCallback(async () => {
-        await Clipboard.setStringAsync(MOCK_WALLET_ADDRESS);
-    }, []);
+    }, [walletAddress]);
 
     // ─── Step 3: Network Detail ──────────────────────────────────────────────────
 
     if (step === 'detail') {
+        const isLoading = depositAddressQuery.isLoading;
+        const networkLabel = selectedNetworkOption?.name?.split(' ')[1]?.replace('(', '').replace(')', '')
+            ?? selectedNetworkOption?.id?.toUpperCase()
+            ?? '';
+
         return (
             <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
                 {/* Header */}
@@ -198,75 +197,59 @@ export default function CryptoReceiveScreen(): React.ReactElement {
                 </View>
 
                 {detailTab === 'address' ? (
-                    <ScrollView
-                        style={styles.scroll}
-                        contentContainerStyle={styles.detailScrollContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        {/* QR Code */}
-                        <View style={styles.qrSection}>
-                            <View style={styles.qrContainer}>
-                                <View style={styles.qrGrid}>
-                                    {Array.from({ length: 144 }).map((_, i) => (
-                                        <View
-                                            key={i}
-                                            style={[
-                                                styles.qrDot,
-                                                (i + Math.floor(i / 12)) % 3 === 0 && styles.qrDotFilled,
-                                            ]}
-                                        />
-                                    ))}
+                    isLoading ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color={colors.primary} />
+                        </View>
+                    ) : (
+                        <ScrollView
+                            style={styles.scroll}
+                            contentContainerStyle={styles.detailScrollContent}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            {/* Real QR Code */}
+                            <View style={styles.qrSection}>
+                                <QRCardWithLogo
+                                    value={walletAddress || `livo:${selectedCurrency}:${selectedNetwork}`}
+                                    size={280}
+                                    containerSize={373}
+                                />
+                            </View>
+
+                            {/* Address Card */}
+                            <View style={styles.addressCard}>
+                                <Text style={styles.networkSupportText}>
+                                    Only Support {networkLabel}
+                                </Text>
+                                <Text style={styles.walletAddressText} selectable>
+                                    {walletAddress || '—'}
+                                </Text>
+                            </View>
+
+                            {/* Info Row Cards */}
+                            <View style={styles.infoSection}>
+                                <View style={styles.infoCard}>
+                                    <View style={styles.infoRow}>
+                                        <Text style={styles.infoLabel}>Contract</Text>
+                                        <Text style={styles.infoValue}>{selectedNetworkOption?.contract ?? '—'}</Text>
+                                    </View>
                                 </View>
-                                <View style={styles.qrLogoWrap}>
-                                    <View style={styles.qrLogo}>
-                                        <Text style={styles.qrLogoText}>L</Text>
+                                <View style={styles.infoCard}>
+                                    <View style={styles.infoRow}>
+                                        <Text style={styles.infoLabel}>Confirmation</Text>
+                                        <Text style={styles.infoValue}>{selectedNetworkOption?.confirmation ?? '—'}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.infoCard}>
+                                    <View style={styles.infoRow}>
+                                        <Text style={styles.infoLabel}>Min Deposit</Text>
+                                        <Text style={styles.infoValue}>{selectedNetworkOption?.minDeposit ?? '10 USDT'}</Text>
                                     </View>
                                 </View>
                             </View>
-                        </View>
 
-                        {/* Address Card */}
-                        <View style={styles.addressCard}>
-                            <Text style={styles.networkSupportText}>
-                                Only Support {selectedNetworkOption?.name?.split(' ')[1]?.replace('(', '').replace(')', '') ?? selectedNetworkOption?.id?.toUpperCase()}
-                            </Text>
-                            <Text style={styles.walletAddressText} selectable>
-                                {MOCK_WALLET_ADDRESS}
-                            </Text>
-                        </View>
-
-                        {/* Info Row Cards */}
-                        <View style={styles.infoSection}>
-                            <View style={styles.infoCard}>
-                                <View style={styles.infoRow}>
-                                    <Text style={styles.infoLabel}>Contract</Text>
-                                    <Text style={styles.infoValue}>*31ec7</Text>
-                                </View>
-                            </View>
-                            <View style={styles.infoCard}>
-                                <View style={styles.infoRow}>
-                                    <Text style={styles.infoLabel}>Confirmation</Text>
-                                    <Text style={styles.infoValue}>32</Text>
-                                </View>
-                            </View>
-                            <View style={styles.infoCard}>
-                                <View style={styles.infoRow}>
-                                    <Text style={styles.infoLabel}>Min Deposit</Text>
-                                    <Text style={styles.infoValue}>{selectedNetworkOption?.minDeposit ?? '10 USDT'}</Text>
-                                </View>
-                            </View>
-                        </View>
-
-                        {/* Important Notes Card */}
-                        <View style={styles.detailNotesSection}>
-                            <Text style={styles.detailNotesTitle}>Important Note:</Text>
-                            <Text style={styles.detailNoteText}>
-                                Do not deposit NFTs to this address{'\n'}
-                                Do not use smart contracts to deposit to this address{'\n'}
-                                Only send tOkayens from {selectedNetworkOption?.name?.split(' ')[0] ?? 'ETH'} Network or you will lose your asset permanently
-                            </Text>
-                        </View>
-                    </ScrollView>
+                        </ScrollView>
+                    )
                 ) : (
                     /* Transaction Tab - Empty State */
                     <View style={styles.emptyTransactionContainer}>
@@ -278,12 +261,13 @@ export default function CryptoReceiveScreen(): React.ReactElement {
                 )}
 
                 {/* Footer Buttons (only on address tab) */}
-                {detailTab === 'address' && (
+                {detailTab === 'address' && !isLoading && (
                     <View style={styles.detailFooter}>
                         <TouchableOpacity
                             style={[styles.copyBtn, copied && styles.copyBtnCopied]}
                             onPress={handleCopyAddress}
                             activeOpacity={0.7}
+                            disabled={!walletAddress}
                         >
                             <Text style={styles.copyBtnText}>
                                 {copied ? 'Copied' : 'Copy'}
@@ -293,80 +277,23 @@ export default function CryptoReceiveScreen(): React.ReactElement {
                             style={styles.shareTextBtn}
                             onPress={() => setShareVisible(true)}
                             activeOpacity={0.6}
+                            disabled={!walletAddress}
                         >
                             <Text style={styles.shareTextBtnLabel}>Share QR code</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
-                {/* ─── Share Bottom Sheet ─────────────────────────────────── */}
-                <BottomSheet
+                {/* ─── Share QR Modal (two-card overlay, same as QuickReceive) ── */}
+                <ShareQRModal
                     visible={shareVisible}
                     onClose={() => setShareVisible(false)}
-                    footer={
-                        <TouchableOpacity
-                            style={styles.okayBtn}
-                            onPress={() => setShareVisible(false)}
-                            activeOpacity={0.85}
-                        >
-                            <Text style={styles.okayBtnText}>Okay</Text>
-                        </TouchableOpacity>
-                    }
-                >
-                    {/* QR Preview */}
-                    <View style={styles.shareQrWrap}>
-                        <View style={styles.shareQrContainer}>
-                            <View style={styles.shareQrGrid}>
-                                {Array.from({ length: 64 }).map((_, i) => (
-                                    <View
-                                        key={i}
-                                        style={[
-                                            styles.shareQrDot,
-                                            (i + Math.floor(i / 8)) % 3 === 0 && styles.shareQrDotFilled,
-                                        ]}
-                                    />
-                                ))}
-                            </View>
-                            <View style={styles.shareQrLogoWrap}>
-                                <View style={styles.shareQrLogo}>
-                                    <Text style={styles.shareQrLogoText}>L</Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-
-                    <Text style={styles.shareAddressText} numberOfLines={1}>
-                        {MOCK_WALLET_ADDRESS}
-                    </Text>
-
-                    {/* Action Buttons */}
-                    <View style={styles.shareActions}>
-                        <TouchableOpacity style={styles.shareActionItem} activeOpacity={0.7}>
-                            <View style={styles.shareActionIconWrap}>
-                                <HugeiconsIcon icon={Bookmark01FreeIcons} size={20} color={colors.textPrimary} />
-                            </View>
-                            <Text style={styles.shareActionLabel}>Save</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.shareActionItem} onPress={handleCopyLink} activeOpacity={0.7}>
-                            <View style={styles.shareActionIconWrap}>
-                                <HugeiconsIcon icon={Link01FreeIcons} size={20} color={colors.textPrimary} />
-                            </View>
-                            <Text style={styles.shareActionLabel}>Link</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.shareActionItem} onPress={handleMailPress} activeOpacity={0.7}>
-                            <View style={styles.shareActionIconWrap}>
-                                <HugeiconsIcon icon={Mail01FreeIcons} size={20} color={colors.textPrimary} />
-                            </View>
-                            <Text style={styles.shareActionLabel}>Mail</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.shareActionItem} onPress={handleSharePress} activeOpacity={0.7}>
-                            <View style={styles.shareActionIconWrap}>
-                                <HugeiconsIcon icon={Share04FreeIcons} size={20} color={colors.textPrimary} />
-                            </View>
-                            <Text style={styles.shareActionLabel}>Share</Text>
-                        </TouchableOpacity>
-                    </View>
-                </BottomSheet>
+                    qrValue={walletAddress}
+                    title={walletAddress}
+                    subtitle={`Only Support ${networkLabel}`}
+                    shareText={`My ${selectedCurrencyName} deposit address (${selectedNetworkOption?.name ?? networkLabel}):\n${walletAddress}`}
+                    copyLink={walletAddress}
+                />
             </SafeAreaView>
         );
     }
@@ -498,24 +425,27 @@ export default function CryptoReceiveScreen(): React.ReactElement {
                 contentContainerStyle={styles.currencyScrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {dashboard.data?.assets?.map((asset) => (
+                {supportedAssets.isLoading ? (
+                    <View style={styles.emptyState}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                    </View>
+                ) : (supportedAssets.data?.assets?.length
+                        ? supportedAssets.data.assets
+                        : FALLBACK_CRYPTO_ASSETS
+                    ).map((asset) => (
                     <AssetRow
                         key={asset.symbol}
                         symbol={asset.symbol}
                         name={asset.name}
                         price={asset.price}
                         change24h={asset.change_24h}
-                        balance={asset.balance}
-                        usdValue={`${asset.balance} USD`}
+                        balance=""
+                        usdValue=""
                         iconUrl={asset.icon_url}
                         isHidden={false}
                         onPress={() => handleCurrencySelect(asset.symbol, asset.name)}
                     />
-                )) ?? (
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyText}>Loading assets...</Text>
-                    </View>
-                )}
+                ))}
             </ScrollView>
         </SafeAreaView>
     );
@@ -552,6 +482,13 @@ const styles = StyleSheet.create({
     // Shared scroll
     scroll: {
         flex: 1,
+    },
+
+    // Loading
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
     // ─── Step 1: Currency Selection ──────────────────────────────────────────────
@@ -742,55 +679,6 @@ const styles = StyleSheet.create({
         paddingTop: 8,
         paddingBottom: 16,
     },
-    qrContainer: {
-        width: 373,
-        height: 373,
-        borderRadius: 31,
-        borderWidth: 1,
-        borderColor: '#E8E8E8',
-        backgroundColor: '#FFFFFF',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 7,
-    },
-    qrGrid: {
-        width: 320,
-        height: 320,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    qrDot: {
-        width: 18,
-        height: 18,
-        borderRadius: 2,
-        backgroundColor: '#F0F0F0',
-    },
-    qrDotFilled: {
-        backgroundColor: '#242424',
-    },
-    qrLogoWrap: {
-        position: 'absolute',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    qrLogo: {
-        width: 98,
-        height: 98,
-        borderRadius: 23,
-        backgroundColor: '#01CA47',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 12,
-        borderColor: '#FFFFFF',
-    },
-    qrLogoText: {
-        fontSize: 30,
-        fontWeight: '700',
-        color: 'white',
-    },
 
     // Info cards
     detailScrollContent: {
@@ -839,10 +727,6 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
     },
-    infoDivider: {
-        height: 1,
-        backgroundColor: '#F0F0F0',
-    },
     infoLabel: {
         fontSize: 16,
         fontWeight: '400',
@@ -855,28 +739,8 @@ const styles = StyleSheet.create({
         color: '#242424',
         lineHeight: 24,
         textAlign: 'right',
-    },
-
-    // Detail Important Notes
-    detailNotesSection: {
-        borderWidth: 1,
-        borderColor: '#E8E8E8',
-        borderRadius: 15,
-        paddingVertical: 10,
-        paddingHorizontal: 17,
-    },
-    detailNotesTitle: {
-        fontSize: 16,
-        fontWeight: '400',
-        color: 'rgba(0, 0, 0, 0.20)',
-        lineHeight: 24,
-        marginBottom: 6,
-    },
-    detailNoteText: {
-        fontSize: 16,
-        fontWeight: '400',
-        color: 'rgba(0, 0, 0, 0.20)',
-        lineHeight: 24,
+        flexShrink: 1,
+        marginLeft: 8,
     },
 
     // Footer Buttons
@@ -939,106 +803,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
         color: '#B2B2B2',
-        lineHeight: 24,
-    },
-
-    // ─── Share Bottom Sheet ──────────────────────────────────────────────────────
-
-    shareQrWrap: {
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    shareQrContainer: {
-        width: 160,
-        height: 160,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E8E8E8',
-        backgroundColor: '#FFFFFF',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    shareQrGrid: {
-        width: 136,
-        height: 136,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    shareQrDot: {
-        width: 15,
-        height: 15,
-        borderRadius: 2,
-        backgroundColor: '#F0F0F0',
-    },
-    shareQrDotFilled: {
-        backgroundColor: '#242424',
-    },
-    shareQrLogoWrap: {
-        position: 'absolute',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    shareQrLogo: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        backgroundColor: '#01CA47',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    shareQrLogoText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: 'white',
-    },
-    shareAddressText: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: '#242424',
-        textAlign: 'center',
-        marginBottom: 20,
-        paddingHorizontal: 20,
-    },
-    shareActions: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 58,
-        paddingVertical: 17,
-    },
-    shareActionItem: {
-        alignItems: 'center',
-        gap: 5,
-        width: 39,
-    },
-    shareActionIconWrap: {
-        width: 39,
-        height: 39,
-        borderRadius: 243,
-        backgroundColor: '#D9F7E3',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    shareActionLabel: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#242424',
-        lineHeight: 21,
-        textAlign: 'center',
-    },
-    okayBtn: {
-        height: 52,
-        backgroundColor: '#242424',
-        borderRadius: 600,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    okayBtnText: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: 'white',
         lineHeight: 24,
     },
 });

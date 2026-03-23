@@ -2,6 +2,7 @@ import apiClient from './client';
 import type { ApiResponse } from '@app-types/api.types';
 import type {
     SendMethodsResponse,
+    RecipientSearchResult,
     RecipientSearchResponse,
     DirectTransferRequest,
     QuickTransferRequest,
@@ -23,10 +24,10 @@ export async function getSendMethods(): Promise<ApiResponse<SendMethodsResponse>
 export async function searchRecipients(
     query: string,
 ): Promise<ApiResponse<RecipientSearchResponse>> {
-    const res = await apiClient.get<RecipientSearchResponse>('/send/search', {
+    const res = await apiClient.get<RecipientSearchResult[]>('/send/search', {
         params: { query },
     });
-    return { success: true, data: res.data };
+    return { success: true, data: { recipients: res.data } };
 }
 
 // ─── Direct Transfer ─────────────────────────────────────────────────────────

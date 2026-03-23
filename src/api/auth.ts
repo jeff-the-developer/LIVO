@@ -43,8 +43,9 @@ export interface AuthTokens {
     user: User;
 }
 
+/** After Redis-backed register, `user_id` may be absent until OTP verifies */
 export interface RegisterResult {
-    user_id: string;
+    user_id?: string;
     identifier: string;
 }
 
@@ -71,6 +72,7 @@ interface BackendUser {
     email_verified?: boolean;
     biometric_enabled?: boolean;
     mfa_enabled?: boolean;
+    pin_enabled?: boolean;
     status?: string;
     balance?: string;
     created_at?: string;
@@ -99,6 +101,7 @@ function mapAuthResponse(raw: BackendAuthResponse): AuthTokens {
             email_verified: raw.user.email_verified,
             biometric_enabled: raw.user.biometric_enabled,
             mfa_enabled: raw.user.mfa_enabled,
+            pin_enabled: raw.user.pin_enabled,
             status: raw.user.status,
             balance: raw.user.balance,
             created_at: raw.user.created_at,
@@ -122,6 +125,7 @@ const MOCK_USER: User = {
     kyc_level: 0,
     membership_tier: 'Basic',
     svid: 'LIVO12345',
+    pin_enabled: true,
 };
 
 const MOCK_TOKENS: AuthTokens = {
@@ -144,18 +148,21 @@ export async function registerUser(
         }
         return mockDelay({
             success: true,
-            data: { user_id: 'mock-user-001', identifier: payload.identifier },
+            data: { identifier: payload.identifier },
             message: 'Verification code sent',
         });
     }
-    const res = await apiClient.post<{ user_id: string; message: string }>(
+    const res = await apiClient.post<{ user_id?: string; message: string }>(
         '/auth/register',
         { email: payload.identifier, invite_code: payload.invite_code },
     );
     return {
         success: true,
         message: res.data.message,
-        data: { user_id: res.data.user_id, identifier: payload.identifier },
+        data: {
+            ...(res.data.user_id != null ? { user_id: res.data.user_id } : {}),
+            identifier: payload.identifier,
+        },
     };
 }
 
@@ -175,11 +182,17 @@ export async function verifyOTP(
             data: { user_id: 'mock-user-001', verified: true },
         });
     }
-    const res = await apiClient.post<{ verified: boolean }>(
+    const res = await apiClient.post<{ verified: boolean; user_id?: string }>(
         '/auth/verify-email',
         { email: payload.identifier, code: payload.code },
     );
-    return { success: true, data: { verified: res.data.verified } };
+    return {
+        success: true,
+        data: {
+            verified: res.data.verified,
+            ...(res.data.user_id != null ? { user_id: res.data.user_id } : {}),
+        },
+    };
 }
 
 // ─── Resend OTP ───────────────────────────────────────────────────────────────
@@ -238,9 +251,20 @@ export async function checkUsername(
 export async function createUsername(
     payload: CreateUsernamePayload,
 ): Promise<ApiResponse<AuthTokens>> {
+    const uid = payload.user_id || MOCK_USER.user_id;
+    // Simulated post-registration user id from mock login vs existing account (edit username)
+    const isFreshOnboarding = uid === 'mock-new-user';
     return mockDelay({
         success: true,
-        data: { ...MOCK_TOKENS, user: { ...MOCK_USER, username: payload.username } },
+        data: {
+            ...MOCK_TOKENS,
+            user: {
+                ...MOCK_USER,
+                user_id: uid,
+                username: payload.username,
+                pin_enabled: isFreshOnboarding ? false : true,
+            },
+        },
     });
 }
 
@@ -263,13 +287,34 @@ export async function loginUser(
     if (ENV.MOCK_MODE) {
         const validEmail = payload.identifier.toLowerCase() === MOCK_EMAIL.toLowerCase();
         const validPassword = payload.password === MOCK_PASSWORD;
-        if (!validEmail || !validPassword) {
-            return mockError(
-                'PIN_INCORRECT',
-                'Invalid credentials. Try demo@livo.com / Demo1234!',
-            );
+        if (validEmail && validPassword) {
+            return mockDelay({ success: true, data: MOCK_TOKENS });
         }
-        return mockDelay({ success: true, data: MOCK_TOKENS });
+        // Post-registration mock: demo password + any other identifier (onboarding funnel)
+        if (validPassword) {
+            const id = payload.identifier.trim();
+            return mockDelay({
+                success: true,
+                data: {
+                    access_token: 'mock-access-onboarding',
+                    refresh_token: 'mock-refresh-onboarding',
+                    user: {
+                        user_id: 'mock-new-user',
+                        username: '',
+                        email: id.includes('@') ? id : MOCK_USER.email,
+                        phone: id.includes('@') ? undefined : id,
+                        account_type: 'individual',
+                        kyc_level: 0,
+                        membership_tier: 'Basic',
+                        pin_enabled: false,
+                    },
+                },
+            });
+        }
+        return mockError(
+            'PIN_INCORRECT',
+            'Invalid credentials. Try demo@livo.com / Demo1234!',
+        );
     }
     const res = await apiClient.post<BackendAuthResponse>('/auth/login', payload);
     return { success: true, data: mapAuthResponse(res.data) };

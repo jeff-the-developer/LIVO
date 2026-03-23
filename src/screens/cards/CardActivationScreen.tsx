@@ -24,6 +24,8 @@ import { borderRadius } from '@theme/borderRadius';
 import { typography } from '@theme/typography';
 import type { AppStackParamList } from '@app-types/navigation.types';
 import BottomSheet from '@components/common/BottomSheet';
+import Button from '@components/common/Button';
+import SheetStateBlock from '@components/common/SheetStateBlock';
 import CardCouponSheet from './CardCouponSheet';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
@@ -301,29 +303,17 @@ export default function CardActivationScreen(): React.ReactElement {
             {/* ─── Failure Sheet ──────────────────────────────────── */}
             <BottomSheet visible={showFailure} onClose={() => setShowFailure(false)}>
                 <View style={sheet.container}>
-                    <View style={sheet.failIconWrap}>
-                        <HugeiconsIcon
-                            icon={Cancel01FreeIcons}
-                            size={28}
-                            color={palette.red}
-                        />
-                    </View>
-                    <Text style={sheet.title}>Operation Failed</Text>
-                    <Text style={sheet.body}>
-                        Card could not be added, please try again or contact
-                        customer service.
-                    </Text>
+                    <SheetStateBlock
+                        tone="error"
+                        title="Operation Failed"
+                        description="Card could not be added, please try again or contact customer service."
+                    />
                     <View style={sheet.footer}>
-                        <TouchableOpacity
-                            style={sheet.confirmBtn}
+                        <Button
+                            label="Try Again"
                             onPress={onRetry}
-                            activeOpacity={0.85}
-                            accessibilityLabel="Try Again"
-                            accessibilityRole="button"
                             testID="activate-retry"
-                        >
-                            <Text style={sheet.confirmBtnText}>Try Again</Text>
-                        </TouchableOpacity>
+                        />
                     </View>
                 </View>
             </BottomSheet>
